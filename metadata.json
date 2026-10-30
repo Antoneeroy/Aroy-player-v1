@@ -1,0 +1,6 @@
+{
+  "name": "Aroy Player",
+  "description": "Fast, clean Video & MP3 player for offline phone storage and online streaming with gestures, subtitles, and playlists.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
