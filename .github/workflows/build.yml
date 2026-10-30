@@ -15,10 +15,10 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: 9.3.1
-      - name: Create debug keystore
+      # app/build.gradle.kts expects the debug keystore at <repo root>/debug.keystore
+      - name: Create debug keystore in repo root
         run: |
-          mkdir -p ~/.android
-          keytool -genkey -v -keystore ~/.android/debug.keystore \
+          keytool -genkeypair -v -keystore debug.keystore \
             -storepass android -alias androiddebugkey -keypass android \
             -keyalg RSA -keysize 2048 -validity 10000 \
             -dname "CN=Android Debug,O=Android,C=US"
@@ -27,4 +27,4 @@ jobs:
         if: always()
         with:
           name: aroy-player-apk
-          path: app/build/outputs/apk/debug/*.apk
+          path: app/build/outputs/apk/
