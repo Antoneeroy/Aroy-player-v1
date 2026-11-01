@@ -92,7 +92,6 @@ import com.example.ui.VideoSubTab
 import com.example.ui.components.AddToPlaylistDialog
 import com.example.ui.components.AudioPlayerSheet
 import com.example.ui.components.CreatePlaylistDialog
-import com.example.ui.components.MediaNotificationWidget
 import com.example.ui.components.MiniPlayerBar
 import com.example.ui.components.Mp3ConverterDialog
 import com.example.ui.components.SleepTimerDialog
@@ -134,11 +133,11 @@ fun HomeScreen(viewModel: AroyViewModel) {
 
     var isSearchActive by remember { mutableStateOf(false) }
     var showSortDialog by remember { mutableStateOf(false) }
-    var isNotificationWidgetDismissed by remember { mutableStateOf(false) }
+    var isMiniPlayerDismissed by remember { mutableStateOf(false) }
 
     LaunchedEffect(playbackSnapshot.currentMedia) {
         if (playbackSnapshot.currentMedia != null) {
-            isNotificationWidgetDismissed = false
+            isMiniPlayerDismissed = false
         }
     }
 
@@ -199,6 +198,14 @@ fun HomeScreen(viewModel: AroyViewModel) {
             currentThemeMode = uiState.themeMode,
             onThemeChange = { viewModel.setThemeMode(it) },
             onRescanStorage = { viewModel.scanStorage() },
+            dolbyAtmosEnabled = uiState.dolbyAtmosEnabled,
+            dolbyProfile = uiState.dolbyProfile,
+            dolbyBassBoost = uiState.dolbyBassBoost,
+            dolbySurroundVirtualizer = uiState.dolbySurroundVirtualizer,
+            onToggleDolbyAtmos = { viewModel.setDolbyAtmosEnabled(it) },
+            onSelectDolbyProfile = { viewModel.setDolbyProfile(it) },
+            onToggleDolbyBassBoost = { viewModel.setDolbyBassBoost(it) },
+            onToggleDolbySurroundVirtualizer = { viewModel.setDolbySurroundVirtualizer(it) },
             onBack = { viewModel.setSettingsOpen(false) }
         )
         return
@@ -377,31 +384,6 @@ fun HomeScreen(viewModel: AroyViewModel) {
                             )
                         }
 
-                        // Notification Widget Toggle Button (shows when media is loaded)
-                        if (playbackSnapshot.currentMedia != null) {
-                            IconButton(
-                                onClick = { isNotificationWidgetDismissed = !isNotificationWidgetDismissed },
-                                modifier = Modifier.testTag("notification_widget_toggle_button")
-                            ) {
-                                BadgedBox(
-                                    badge = {
-                                        Surface(
-                                            shape = CircleShape,
-                                            color = AccentGreen,
-                                            modifier = Modifier.size(8.dp)
-                                        ) {}
-                                    }
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.NotificationsActive,
-                                        contentDescription = "Toggle Notification Widget",
-                                        tint = if (!isNotificationWidgetDismissed) AccentGreen else primaryTextColor,
-                                        modifier = Modifier.size(22.dp)
-                                    )
-                                }
-                            }
-                        }
-
                         if (uiState.currentBottomNav == BottomNavDestination.VIDEO) {
                             // Layout toggle: 3-line grid / 2-line grid / 1-line list ("3 line add karo")
                             IconButton(
@@ -515,6 +497,47 @@ fun HomeScreen(viewModel: AroyViewModel) {
                         }
                     }
                 }
+
+                // Sub-tabs under MUSIC section (Music, Playlist, Favourite) ("music pe click kare upar music, playlist, favourite, ye bhi aye")
+                if (uiState.currentBottomNav == BottomNavDestination.MUSIC && !isSearchActive) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(20.dp)
+                    ) {
+                        listOf(
+                            com.example.ui.MusicSubTab.MUSIC,
+                            com.example.ui.MusicSubTab.PLAYLIST,
+                            com.example.ui.MusicSubTab.FAVOURITE
+                        ).forEach { subTab ->
+                            val isSelected = uiState.musicSubTab == subTab
+                            Column(
+                                modifier = Modifier
+                                    .clickable { viewModel.selectMusicSubTab(subTab) }
+                                    .padding(vertical = 4.dp)
+                                    .testTag("music_subtab_${subTab.name}")
+                            ) {
+                                Text(
+                                    text = subTab.title,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (isSelected) AccentGreen else secondaryTextColor
+                                )
+                                if (isSelected) {
+                                    Box(
+                                        modifier = Modifier
+                                            .padding(top = 3.dp)
+                                            .width(24.dp)
+                                            .height(3.dp)
+                                            .clip(CircleShape)
+                                            .background(AccentGreen)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
             }
         },
         bottomBar = {
@@ -523,8 +546,8 @@ fun HomeScreen(viewModel: AroyViewModel) {
                     .fillMaxWidth()
                     .navigationBarsPadding()
             ) {
-                // Floating MiniPlayerBar
-                if (playbackSnapshot.currentMedia != null) {
+                // Floating MiniPlayerBar with swipe-to-dismiss & hold gesture
+                if (playbackSnapshot.currentMedia != null && !isMiniPlayerDismissed) {
                     MiniPlayerBar(
                         snapshot = playbackSnapshot,
                         onBarClick = {
@@ -535,7 +558,11 @@ fun HomeScreen(viewModel: AroyViewModel) {
                             }
                         },
                         onPlayPause = { viewModel.playerManager.playPauseToggle() },
-                        onNext = { viewModel.playerManager.playNext() }
+                        onNext = { viewModel.playerManager.playNext() },
+                        onDismiss = {
+                            viewModel.playerManager.pause()
+                            isMiniPlayerDismissed = true
+                        }
                     )
                 }
 
@@ -704,27 +731,6 @@ fun HomeScreen(viewModel: AroyViewModel) {
                 }
             }
 
-            // Interactive In-App Media Notification Widget ("notification widget add karo")
-            if (playbackSnapshot.currentMedia != null && !isNotificationWidgetDismissed) {
-                MediaNotificationWidget(
-                    snapshot = playbackSnapshot,
-                    isDark = isDark,
-                    onOpenPlayer = {
-                        if (playbackSnapshot.currentMedia?.isVideo == true) {
-                            viewModel.setVideoPlayerOpen(true)
-                        } else {
-                            viewModel.setAudioSheetExpanded(true)
-                        }
-                    },
-                    onPlayPause = { viewModel.playerManager.playPauseToggle() },
-                    onNext = { viewModel.playerManager.playNext() },
-                    onPrevious = { viewModel.playerManager.playPrevious() },
-                    onRewind10s = { viewModel.playerManager.rewind10s() },
-                    onForward10s = { viewModel.playerManager.forward10s() },
-                    onDismiss = { isNotificationWidgetDismissed = true }
-                )
-            }
-
             // Main Content Area based on BottomNav Destination
             Box(modifier = Modifier.fillMaxSize()) {
                 when (uiState.currentBottomNav) {
@@ -772,13 +778,43 @@ fun HomeScreen(viewModel: AroyViewModel) {
                     }
 
                     BottomNavDestination.MUSIC -> {
-                        AudioListTab(
-                            audios = filteredAudios,
-                            isScanning = uiState.isScanning,
-                            onAudioClick = { audio -> viewModel.playMediaItem(audio, filteredAudios) },
-                            onAddToPlaylist = { audio -> viewModel.setShowAddToPlaylist(audio) },
-                            onRefreshScan = { viewModel.scanStorage() }
-                        )
+                        when (uiState.musicSubTab) {
+                            com.example.ui.MusicSubTab.MUSIC -> {
+                                AudioListTab(
+                                    audios = filteredAudios,
+                                    isScanning = uiState.isScanning,
+                                    onAudioClick = { audio -> viewModel.playMediaItem(audio, filteredAudios) },
+                                    onAddToPlaylist = { audio -> viewModel.setShowAddToPlaylist(audio) },
+                                    onRefreshScan = { viewModel.scanStorage() },
+                                    isFavorite = { uri -> viewModel.isFavorite(uri) },
+                                    onToggleFavorite = { uri -> viewModel.toggleFavorite(uri) }
+                                )
+                            }
+                            com.example.ui.MusicSubTab.PLAYLIST -> {
+                                PlaylistsTab(
+                                    history = history.filter { !it.isVideo },
+                                    playlists = playlists,
+                                    onResumeItem = { item -> viewModel.playMediaItem(item) },
+                                    onClearHistory = { viewModel.clearHistory() },
+                                    onCreatePlaylist = { viewModel.setShowCreatePlaylist(true) },
+                                    onDeletePlaylist = { id -> viewModel.deletePlaylist(id) }
+                                )
+                            }
+                            com.example.ui.MusicSubTab.FAVOURITE -> {
+                                val favAudios = filteredAudios.filter { viewModel.isFavorite(it.uri) }
+                                AudioListTab(
+                                    audios = favAudios,
+                                    isScanning = uiState.isScanning,
+                                    onAudioClick = { audio -> viewModel.playMediaItem(audio, favAudios) },
+                                    onAddToPlaylist = { audio -> viewModel.setShowAddToPlaylist(audio) },
+                                    onRefreshScan = { viewModel.scanStorage() },
+                                    isFavorite = { uri -> viewModel.isFavorite(uri) },
+                                    onToggleFavorite = { uri -> viewModel.toggleFavorite(uri) },
+                                    emptyTitle = "No Favourites Yet",
+                                    emptyMessage = "Tap the heart icon on any song in the Music tab to add it to your favourites."
+                                )
+                            }
+                        }
                     }
 
                     BottomNavDestination.STREAM -> {

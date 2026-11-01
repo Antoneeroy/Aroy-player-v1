@@ -22,6 +22,9 @@ class NotificationActionReceiver : BroadcastReceiver() {
             AroyNotificationHelper.ACTION_PREV -> {
                 manager.playPrevious()
             }
+            AroyNotificationHelper.ACTION_STOP -> {
+                manager.pause()
+            }
         }
     }
 }

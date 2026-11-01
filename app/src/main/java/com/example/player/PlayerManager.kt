@@ -178,6 +178,7 @@ class PlayerManager(private val context: Context) {
             player.seekTo(startPositionMs)
         }
         player.play()
+        applyDolbyEffects()
 
         _state.value = _state.value.copy(
             currentMedia = item,
@@ -345,9 +346,83 @@ class PlayerManager(private val context: Context) {
         progressJob?.cancel()
     }
 
+    private var virtualizer: android.media.audiofx.Virtualizer? = null
+    private var bassBoost: android.media.audiofx.BassBoost? = null
+    private var isDolbyEnabled: Boolean = true
+    private var currentDolbyProfile: String = "Dynamic"
+    private var currentDolbyBass: Boolean = true
+    private var currentDolbyVirtualizer: Boolean = true
+
+    fun setDolbyAtmos(
+        enabled: Boolean,
+        profile: String = "Dynamic",
+        enableBass: Boolean = true,
+        enableVirtualizer: Boolean = true
+    ) {
+        isDolbyEnabled = enabled
+        currentDolbyProfile = profile
+        currentDolbyBass = enableBass
+        currentDolbyVirtualizer = enableVirtualizer
+        applyDolbyEffects()
+    }
+
+    private fun applyDolbyEffects() {
+        val player = exoPlayer ?: return
+        val sessionId = player.audioSessionId
+        if (sessionId <= 0) return
+
+        try {
+            if (isDolbyEnabled) {
+                if (virtualizer == null) {
+                    virtualizer = android.media.audiofx.Virtualizer(0, sessionId)
+                }
+                virtualizer?.enabled = currentDolbyVirtualizer
+                if (currentDolbyVirtualizer) {
+                    virtualizer?.setStrength(1000.toShort())
+                }
+
+                if (bassBoost == null) {
+                    bassBoost = android.media.audiofx.BassBoost(0, sessionId)
+                }
+                bassBoost?.enabled = currentDolbyBass
+                if (currentDolbyBass) {
+                    val strength = when (currentDolbyProfile) {
+                        "Movie" -> 850.toShort()
+                        "Music" -> 900.toShort()
+                        "Voice" -> 250.toShort()
+                        else -> 800.toShort()
+                    }
+                    bassBoost?.setStrength(strength)
+                }
+            } else {
+                virtualizer?.enabled = false
+                bassBoost?.enabled = false
+            }
+        } catch (e: Exception) {
+            // Emulators or unsupported devices
+        }
+    }
+
+    fun stopPlayback() {
+        exoPlayer?.pause()
+        _state.value = _state.value.copy(
+            isPlaying = false,
+            currentMedia = null,
+            currentPositionMs = 0L
+        )
+    }
+
     fun release() {
         stopProgressTracker()
         sleepTimerJob?.cancel()
+        try {
+            virtualizer?.release()
+            bassBoost?.release()
+            virtualizer = null
+            bassBoost = null
+        } catch (e: Exception) {
+            // ignore
+        }
         exoPlayer?.release()
         exoPlayer = null
     }

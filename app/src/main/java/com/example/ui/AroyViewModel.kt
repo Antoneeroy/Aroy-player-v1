@@ -51,10 +51,17 @@ enum class VideoSubTab(val title: String) {
     STREAM("Streams")
 }
 
+enum class MusicSubTab(val title: String) {
+    MUSIC("Music"),
+    PLAYLIST("Playlist"),
+    FAVOURITE("Favourite")
+}
+
 data class UiState(
     val selectedTab: MainTab = MainTab.VIDEOS,
     val currentBottomNav: BottomNavDestination = BottomNavDestination.VIDEO,
     val videoSubTab: VideoSubTab = VideoSubTab.VIDEO,
+    val musicSubTab: MusicSubTab = MusicSubTab.MUSIC,
     val videoLayoutColumns: Int = 2, // 1, 2, or 3 ("3 line" layout)
     val isScanning: Boolean = false,
     val hasPermission: Boolean = false,
@@ -71,7 +78,12 @@ data class UiState(
     val showCreatePlaylistDialog: Boolean = false,
     val showStreamDialog: Boolean = false,
     val showMp3ConverterDialog: Boolean = false,
-    val videoForMp3Convert: MediaItemData? = null
+    val videoForMp3Convert: MediaItemData? = null,
+    val dolbyAtmosEnabled: Boolean = true,
+    val dolbyProfile: String = "Dynamic",
+    val dolbyBassBoost: Boolean = true,
+    val dolbySurroundVirtualizer: Boolean = true,
+    val favoriteUris: Set<String> = emptySet()
 )
 
 class AroyViewModel(application: Application) : AndroidViewModel(application) {
@@ -81,6 +93,7 @@ class AroyViewModel(application: Application) : AndroidViewModel(application) {
     val repository = AroyRepository(scanner, db.aroyDao())
     val playerManager = PlayerManager(application)
     val notificationHelper = AroyNotificationHelper(application)
+    private val prefs = application.getSharedPreferences("aroy_settings_pref", android.content.Context.MODE_PRIVATE)
 
     private val _uiState = MutableStateFlow(UiState())
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
@@ -139,6 +152,23 @@ class AroyViewModel(application: Application) : AndroidViewModel(application) {
 
     init {
         NotificationActionReceiver.playerManager = playerManager
+
+        // Load saved settings
+        val savedFavorites = prefs.getStringSet("favorites", emptySet()) ?: emptySet()
+        val dolbyEnabled = prefs.getBoolean("dolby_atmos_enabled", true)
+        val dolbyProfile = prefs.getString("dolby_profile", "Dynamic") ?: "Dynamic"
+        val dolbyBass = prefs.getBoolean("dolby_bass_boost", true)
+        val dolbyVirtualizer = prefs.getBoolean("dolby_surround", true)
+
+        _uiState.value = _uiState.value.copy(
+            favoriteUris = savedFavorites,
+            dolbyAtmosEnabled = dolbyEnabled,
+            dolbyProfile = dolbyProfile,
+            dolbyBassBoost = dolbyBass,
+            dolbySurroundVirtualizer = dolbyVirtualizer
+        )
+        playerManager.setDolbyAtmos(dolbyEnabled, dolbyProfile, dolbyBass, dolbyVirtualizer)
+
         scanStorage()
         // Auto update system notification widget on playback state changes
         viewModelScope.launch {
@@ -176,6 +206,69 @@ class AroyViewModel(application: Application) : AndroidViewModel(application) {
 
     fun selectVideoSubTab(tab: VideoSubTab) {
         _uiState.value = _uiState.value.copy(videoSubTab = tab, selectedFolder = null)
+    }
+
+    fun selectMusicSubTab(tab: MusicSubTab) {
+        _uiState.value = _uiState.value.copy(musicSubTab = tab, selectedFolder = null)
+    }
+
+    fun toggleFavorite(uri: String) {
+        val current = _uiState.value.favoriteUris.toMutableSet()
+        if (current.contains(uri)) {
+            current.remove(uri)
+        } else {
+            current.add(uri)
+        }
+        _uiState.value = _uiState.value.copy(favoriteUris = current)
+        prefs.edit().putStringSet("favorites", current).apply()
+    }
+
+    fun isFavorite(uri: String): Boolean {
+        return _uiState.value.favoriteUris.contains(uri)
+    }
+
+    fun setDolbyAtmosEnabled(enabled: Boolean) {
+        _uiState.value = _uiState.value.copy(dolbyAtmosEnabled = enabled)
+        prefs.edit().putBoolean("dolby_atmos_enabled", enabled).apply()
+        playerManager.setDolbyAtmos(
+            enabled,
+            _uiState.value.dolbyProfile,
+            _uiState.value.dolbyBassBoost,
+            _uiState.value.dolbySurroundVirtualizer
+        )
+    }
+
+    fun setDolbyProfile(profile: String) {
+        _uiState.value = _uiState.value.copy(dolbyProfile = profile)
+        prefs.edit().putString("dolby_profile", profile).apply()
+        playerManager.setDolbyAtmos(
+            _uiState.value.dolbyAtmosEnabled,
+            profile,
+            _uiState.value.dolbyBassBoost,
+            _uiState.value.dolbySurroundVirtualizer
+        )
+    }
+
+    fun setDolbyBassBoost(enabled: Boolean) {
+        _uiState.value = _uiState.value.copy(dolbyBassBoost = enabled)
+        prefs.edit().putBoolean("dolby_bass_boost", enabled).apply()
+        playerManager.setDolbyAtmos(
+            _uiState.value.dolbyAtmosEnabled,
+            _uiState.value.dolbyProfile,
+            enabled,
+            _uiState.value.dolbySurroundVirtualizer
+        )
+    }
+
+    fun setDolbySurroundVirtualizer(enabled: Boolean) {
+        _uiState.value = _uiState.value.copy(dolbySurroundVirtualizer = enabled)
+        prefs.edit().putBoolean("dolby_surround", enabled).apply()
+        playerManager.setDolbyAtmos(
+            _uiState.value.dolbyAtmosEnabled,
+            _uiState.value.dolbyProfile,
+            _uiState.value.dolbyBassBoost,
+            enabled
+        )
     }
 
     fun cycleVideoLayout() {
@@ -394,7 +487,7 @@ class AroyViewModel(application: Application) : AndroidViewModel(application) {
 
     override fun onCleared() {
         super.onCleared()
-        notificationHelper.dismissNotification()
+        notificationHelper.release()
         NotificationActionReceiver.playerManager = null
         playerManager.release()
     }

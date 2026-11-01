@@ -45,6 +45,7 @@
                 <action android:name="com.example.ACTION_PLAY_PAUSE" />
                 <action android:name="com.example.ACTION_NEXT" />
                 <action android:name="com.example.ACTION_PREV" />
+                <action android:name="com.example.ACTION_STOP" />
             </intent-filter>
         </receiver>
     </application>
