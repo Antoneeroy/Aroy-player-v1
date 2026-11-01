@@ -2,8 +2,21 @@ package com.example.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Aroy Player Modern Cyber & PLAYit-inspired Palette
-val AccentGreen = Color(0xFF00D26A) // Emerald green from reference active tab
+// Low-Light Gloss & Liquid Aurora Palette (replaces all green with low-light frosted gloss)
+val LowLightGlossCyan = Color(0xFF38BDF8)           // Primary Low-Light Ice Sheen
+val LowLightGlossSilver = Color(0xFFE2E8F0)         // Luminous Platinum Sheen
+val LowLightGlossViolet = Color(0xFF818CF8)         // Aurora Violet Sheen
+val LowLightGlossSapphire = Color(0xFF2563EB)       // Deep Glass Sapphire
+val LowLightGlossBorder = Color(0x5538BDF8)         // Frosted Glass Border
+val LowLightGlossBadgeBorder = Color(0x6638BDF8)    // Badge border
+val LowLightGlossSurface = Color(0x2238BDF8)        // Low-light translucent surface
+val LowLightGlossBadgeContainer = Color(0x3338BDF8) // Low-light gloss badge pill
+val LowLightGlossBadgeText = Color(0xFFBAE6FD)      // Low-light badge text
+val LowLightGlossIndicator = Color(0xFF38BDF8)      // Selected nav indicator
+
+// Compatibility alias: redirects AccentGreen and AccentEmerald to LowLightGlossCyan so zero green remains!
+val AccentGreen = LowLightGlossCyan
+val AccentEmerald = LowLightGlossCyan
 val NeonCyan = Color(0xFF00E5FF)
 val BrightCyan = Color(0xFF38BDF8)
 val NeonPurple = Color(0xFFA855F7)
@@ -19,8 +32,8 @@ val GlossyWhiteSheen = Color(0xFFFFFFFF) // 5% specular gloss
 val AuroraDarkBase = Color(0xFF0C131F)
 val AuroraSlateMid = Color(0xFF131B2A)
 val AuroraCyanGlow = Color(0xFF0EA5E9)
-val AuroraTealGlow = Color(0xFF14B8A6)
-val AuroraEmeraldGlow = Color(0xFF10B981)
+val AuroraTealGlow = Color(0xFF0284C7)
+val AuroraEmeraldGlow = LowLightGlossCyan // Converted from green to low-light gloss!
 val AuroraPurpleGlow = Color(0xFFA855F7)
 val AuroraPinkGlow = Color(0xFFEC4899)
 val AuroraAmberGlow = Color(0xFFF59E0B)
@@ -55,7 +68,6 @@ val LightSurfaceVariant = Color(0xFFE2E8F0)
 val LightContainer = Color(0xFFCBD5E1)
 
 val AccentRose = Color(0xFFF43F5E)
-val AccentEmerald = Color(0xFF00D26A)
 val AccentAmber = Color(0xFFF59E0B)
 
 val TextPrimaryDark = Color(0xFFFFFFFF)

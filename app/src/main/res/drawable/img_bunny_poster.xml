@@ -1,0 +1,155 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="480dp"
+    android:height="320dp"
+    android:viewportWidth="480"
+    android:viewportHeight="320">
+
+    <!-- Sky Background Gradient -->
+    <path
+        android:pathData="M0,0h480v320h-480z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="240"
+                android:startY="0"
+                android:endX="240"
+                android:endY="220"
+                android:type="linear">
+                <item android:color="#FF38BDF8" android:offset="0.0" />
+                <item android:color="#FF7DD3FC" android:offset="0.4" />
+                <item android:color="#FFE0F2FE" android:offset="0.8" />
+                <item android:color="#FFF0FDF4" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Sun with radiant glow -->
+    <path
+        android:pathData="M380,70m-42,0a42,42 0,1 1,84 0a42,42 0,1 1,-84 0"
+        android:fillColor="#FFFBBF24" />
+    <path
+        android:pathData="M380,70m-32,0a32,32 0,1 1,64 0a32,32 0,1 1,-64 0"
+        android:fillColor="#FFFDE047" />
+
+    <!-- Clouds -->
+    <path
+        android:pathData="M60,65 Q80,45 110,55 Q135,40 160,60 Q180,65 175,85 Q160,95 70,95 Q50,90 60,65 Z"
+        android:fillColor="#CCFFFFFF" />
+    <path
+        android:pathData="M230,85 Q250,70 275,78 Q295,68 315,82 Q330,88 325,102 Q310,110 240,110 Q220,105 230,85 Z"
+        android:fillColor="#AAFFFFFF" />
+
+    <!-- Distant Mountains -->
+    <path
+        android:pathData="M0,230 L90,130 L180,240 L300,110 L410,240 L480,180 L480,320 L0,320 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="240"
+                android:startY="110"
+                android:endX="240"
+                android:endY="240"
+                android:type="linear">
+                <item android:color="#FF6EE7B7" android:offset="0.0" />
+                <item android:color="#FF10B981" android:offset="0.5" />
+                <item android:color="#FF047857" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Rolling Green Forest Hills -->
+    <path
+        android:pathData="M-20,200 Q120,160 260,210 Q380,250 500,190 L500,320 L-20,320 Z"
+        android:fillColor="#FF059669" />
+    <path
+        android:pathData="M-20,240 Q140,210 290,250 Q410,280 500,230 L500,320 L-20,320 Z"
+        android:fillColor="#FF047857" />
+
+    <!-- Giant Cute Cartoon Bunny (Big Buck Bunny) -->
+    <!-- Bunny Shadow -->
+    <path
+        android:pathData="M240,295m-70,0a70,16 0,1 1,140 0a70,16 0,1 1,-140 0"
+        android:fillColor="#44064E3B" />
+
+    <!-- Left Ear -->
+    <path
+        android:pathData="M205,120 Q190,50 205,35 Q220,50 218,120 Z"
+        android:fillColor="#FFF8FAFC" />
+    <path
+        android:pathData="M207,110 Q197,60 206,48 Q216,60 215,110 Z"
+        android:fillColor="#FFF472B6" />
+
+    <!-- Right Ear -->
+    <path
+        android:pathData="M275,120 Q290,50 275,35 Q260,50 262,120 Z"
+        android:fillColor="#FFF8FAFC" />
+    <path
+        android:pathData="M273,110 Q283,60 274,48 Q264,60 265,110 Z"
+        android:fillColor="#FFF472B6" />
+
+    <!-- Big Bunny Body -->
+    <path
+        android:pathData="M240,230m-68,0a68,62 0,1 1,136 0a68,62 0,1 1,-136 0"
+        android:fillColor="#FFF1F5F9" />
+    <!-- White Belly -->
+    <path
+        android:pathData="M240,242m-42,0a42,44 0,1 1,84 0a42,44 0,1 1,-84 0"
+        android:fillColor="#FFFFFFFF" />
+
+    <!-- Bunny Head -->
+    <path
+        android:pathData="M240,150m-46,0a46,42 0,1 1,92 0a46,42 0,1 1,-92 0"
+        android:fillColor="#FFF8FAFC" />
+    <!-- Cheeks -->
+    <path
+        android:pathData="M212,165m-10,0a10,7 0,1 1,20 0a10,7 0,1 1,-20 0"
+        android:fillColor="#44F472B6" />
+    <path
+        android:pathData="M268,165m-10,0a10,7 0,1 1,20 0a10,7 0,1 1,-20 0"
+        android:fillColor="#44F472B6" />
+
+    <!-- Eyes -->
+    <path
+        android:pathData="M222,145m-7,0a7,9 0,1 1,14 0a7,9 0,1 1,-14 0"
+        android:fillColor="#FF1E293B" />
+    <path
+        android:pathData="M224,142m-2,0a2,3 0,1 1,4 0a2,3 0,1 1,-4 0"
+        android:fillColor="#FFFFFFFF" />
+    <path
+        android:pathData="M258,145m-7,0a7,9 0,1 1,14 0a7,9 0,1 1,-14 0"
+        android:fillColor="#FF1E293B" />
+    <path
+        android:pathData="M260,142m-2,0a2,3 0,1 1,4 0a2,3 0,1 1,-4 0"
+        android:fillColor="#FFFFFFFF" />
+
+    <!-- Cute Pink Nose and Mouth -->
+    <path
+        android:pathData="M236,155 L244,155 L240,161 Z"
+        android:fillColor="#FFFB7185" />
+    <path
+        android:pathData="M240,161 L240,167 M234,166 Q240,172 246,166"
+        android:strokeWidth="2"
+        android:strokeColor="#FF334155" />
+
+    <!-- Colorful Forest Flowers in Foreground -->
+    <path android:pathData="M80,285m-8,0a8,8 0,1 1,16 0a8,8 0,1 1,-16 0" android:fillColor="#FFF43F5E" />
+    <path android:pathData="M110,295m-7,0a7,7 0,1 1,14 0a7,7 0,1 1,-14 0" android:fillColor="#FFFBBF24" />
+    <path android:pathData="M370,288m-9,0a9,9 0,1 1,18 0a9,9 0,1 1,-18 0" android:fillColor="#FF38BDF8" />
+    <path android:pathData="M410,298m-7,0a7,7 0,1 1,14 0a7,7 0,1 1,-14 0" android:fillColor="#FFA855F7" />
+
+    <!-- Cinematic Low Light Gloss Front Badge Banner -->
+    <path
+        android:pathData="M0,265h480v55h-480z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="240"
+                android:startY="265"
+                android:endX="240"
+                android:endY="320"
+                android:type="linear">
+                <item android:color="#000A0E1A" android:offset="0.0" />
+                <item android:color="#D90A0E1A" android:offset="0.5" />
+                <item android:color="#F20A0E1A" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+</vector>

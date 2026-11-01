@@ -1,0 +1,86 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="400dp"
+    android:height="400dp"
+    android:viewportWidth="400"
+    android:viewportHeight="400">
+
+    <!-- Outer Vinyl Edge with Specular Rim -->
+    <path
+        android:pathData="M200,200m-190,0a190,190 0,1 1,380 0a190,190 0,1 1,-380 0">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="40"
+                android:startY="40"
+                android:endX="360"
+                android:endY="360"
+                android:type="linear">
+                <item android:color="#FF1E293B" android:offset="0.0" />
+                <item android:color="#FF090D16" android:offset="0.4" />
+                <item android:color="#FF1E293B" android:offset="0.7" />
+                <item android:color="#FF030712" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Vinyl Grooves (Reflective concentric rings) -->
+    <path android:pathData="M200,200m-170,0a170,170 0,1 1,340 0a170,170 0,1 1,-340 0"
+        android:strokeWidth="1.5"
+        android:strokeColor="#18FFFFFF" />
+    <path android:pathData="M200,200m-150,0a150,150 0,1 1,300 0a150,150 0,1 1,-300 0"
+        android:strokeWidth="1"
+        android:strokeColor="#12FFFFFF" />
+    <path android:pathData="M200,200m-130,0a130,130 0,1 1,260 0a130,130 0,1 1,-260 0"
+        android:strokeWidth="1.5"
+        android:strokeColor="#18FFFFFF" />
+    <path android:pathData="M200,200m-110,0a110,110 0,1 1,220 0a110,110 0,1 1,-220 0"
+        android:strokeWidth="1"
+        android:strokeColor="#12FFFFFF" />
+    <path android:pathData="M200,200m-90,0a90,90 0,1 1,180 0a90,90 0,1 1,-180 0"
+        android:strokeWidth="1.5"
+        android:strokeColor="#18FFFFFF" />
+
+    <!-- Specular Light Sheen Wedge across grooves -->
+    <path
+        android:pathData="M200,200 L65,75 A185,185 0 0,1 125,40 Z"
+        android:fillColor="#15FFFFFF" />
+    <path
+        android:pathData="M200,200 L335,325 A185,185 0 0,1 275,360 Z"
+        android:fillColor="#15FFFFFF" />
+
+    <!-- Center Label (Liquid Glass Aurora Disc) -->
+    <path
+        android:pathData="M200,200m-70,0a70,70 0,1 1,140 0a70,70 0,1 1,-140 0">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="130"
+                android:startY="130"
+                android:endX="270"
+                android:endY="270"
+                android:type="linear">
+                <item android:color="#FF38BDF8" android:offset="0.0" />
+                <item android:color="#FF818CF8" android:offset="0.5" />
+                <item android:color="#FFA855F7" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Center Label Inner Glass Ring -->
+    <path
+        android:pathData="M200,200m-52,0a52,52 0,1 1,104 0a52,52 0,1 1,-104 0"
+        android:fillColor="#CC0F172A" />
+
+    <!-- Music Note Icon in Center -->
+    <path
+        android:pathData="M195,180 L195,205 A12,12 0 1,1 185,195 A12,12 0 0,1 195,198 L195,175 L215,170 L215,200 A12,12 0 1,1 205,190 A12,12 0 0,1 215,193 L215,170 Z"
+        android:fillColor="#FFE2E8F0" />
+
+    <!-- Center Spindle Hole -->
+    <path
+        android:pathData="M200,200m-10,0a10,10 0,1 1,20 0a10,10 0,1 1,-20 0"
+        android:fillColor="#FF030712" />
+    <path
+        android:pathData="M200,200m-10,0a10,10 0,1 1,20 0a10,10 0,1 1,-20 0"
+        android:strokeWidth="1.5"
+        android:strokeColor="#44FFFFFF" />
+</vector>

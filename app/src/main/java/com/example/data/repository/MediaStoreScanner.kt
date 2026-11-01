@@ -243,7 +243,7 @@ class MediaStoreScanner(private val context: Context) {
                 mimeType = "video/mp4",
                 isVideo = true,
                 resolution = "1920x1080",
-                thumbnailUri = "https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=400&q=80"
+                thumbnailUri = "android.resource://${context.packageName}/drawable/img_bunny_poster"
             ),
             MediaItemData(
                 id = "sample_vid_2",
@@ -258,7 +258,7 @@ class MediaStoreScanner(private val context: Context) {
                 mimeType = "video/mp4",
                 isVideo = true,
                 resolution = "1920x1080",
-                thumbnailUri = "https://images.unsplash.com/photo-1478760329108-5c3ed9d495a0?w=400&q=80"
+                thumbnailUri = "android.resource://${context.packageName}/drawable/img_scifi_poster"
             ),
             MediaItemData(
                 id = "sample_vid_3",
@@ -273,7 +273,7 @@ class MediaStoreScanner(private val context: Context) {
                 mimeType = "video/mp4",
                 isVideo = true,
                 resolution = "1280x720",
-                thumbnailUri = "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=400&q=80"
+                thumbnailUri = "android.resource://${context.packageName}/drawable/img_flame_poster"
             ),
             MediaItemData(
                 id = "sample_vid_4",
@@ -288,7 +288,7 @@ class MediaStoreScanner(private val context: Context) {
                 mimeType = "video/mp4",
                 isVideo = true,
                 resolution = "1920x1080",
-                thumbnailUri = "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=400&q=80"
+                thumbnailUri = "android.resource://${context.packageName}/drawable/img_vfx_poster"
             )
         )
     }
@@ -306,7 +306,8 @@ class MediaStoreScanner(private val context: Context) {
                 dateAdded = System.currentTimeMillis() / 1000,
                 folderName = "Music",
                 mimeType = "audio/mp3",
-                isVideo = false
+                isVideo = false,
+                thumbnailUri = "android.resource://${context.packageName}/drawable/img_music_vinyl"
             ),
             MediaItemData(
                 id = "sample_aud_2",
@@ -319,7 +320,8 @@ class MediaStoreScanner(private val context: Context) {
                 dateAdded = (System.currentTimeMillis() - 86400000) / 1000,
                 folderName = "Downloads",
                 mimeType = "audio/mp3",
-                isVideo = false
+                isVideo = false,
+                thumbnailUri = "android.resource://${context.packageName}/drawable/img_music_vinyl"
             ),
             MediaItemData(
                 id = "sample_aud_3",
@@ -332,7 +334,8 @@ class MediaStoreScanner(private val context: Context) {
                 dateAdded = (System.currentTimeMillis() - 172800000) / 1000,
                 folderName = "WhatsApp Audio",
                 mimeType = "audio/mp3",
-                isVideo = false
+                isVideo = false,
+                thumbnailUri = "android.resource://${context.packageName}/drawable/img_music_vinyl"
             )
         )
     }

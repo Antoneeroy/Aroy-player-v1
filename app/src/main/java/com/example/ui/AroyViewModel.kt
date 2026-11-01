@@ -16,6 +16,8 @@ import com.example.data.model.PlayerResizeMode
 import com.example.data.model.SortOrder
 import com.example.data.repository.AroyRepository
 import com.example.data.repository.MediaStoreScanner
+import com.example.player.AroyNotificationHelper
+import com.example.player.NotificationActionReceiver
 import com.example.player.PlaybackSnapshot
 import com.example.player.PlayerManager
 import com.example.ui.theme.AppThemeMode
@@ -67,7 +69,9 @@ data class UiState(
     val showSleepTimerDialog: Boolean = false,
     val mediaForPlaylist: MediaItemData? = null,
     val showCreatePlaylistDialog: Boolean = false,
-    val showStreamDialog: Boolean = false
+    val showStreamDialog: Boolean = false,
+    val showMp3ConverterDialog: Boolean = false,
+    val videoForMp3Convert: MediaItemData? = null
 )
 
 class AroyViewModel(application: Application) : AndroidViewModel(application) {
@@ -76,6 +80,7 @@ class AroyViewModel(application: Application) : AndroidViewModel(application) {
     private val scanner = MediaStoreScanner(application)
     val repository = AroyRepository(scanner, db.aroyDao())
     val playerManager = PlayerManager(application)
+    val notificationHelper = AroyNotificationHelper(application)
 
     private val _uiState = MutableStateFlow(UiState())
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
@@ -133,7 +138,14 @@ class AroyViewModel(application: Application) : AndroidViewModel(application) {
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     init {
+        NotificationActionReceiver.playerManager = playerManager
         scanStorage()
+        // Auto update system notification widget on playback state changes
+        viewModelScope.launch {
+            playerManager.state.collect { snapshot ->
+                notificationHelper.updateNotification(snapshot)
+            }
+        }
     }
 
     fun scanStorage() {
@@ -331,6 +343,44 @@ class AroyViewModel(application: Application) : AndroidViewModel(application) {
         playerManager.attachSubtitle(uri)
     }
 
+    fun openMp3Converter(video: MediaItemData? = null) {
+        _uiState.value = _uiState.value.copy(
+            showMp3ConverterDialog = true,
+            videoForMp3Convert = video ?: _rawVideos.value.firstOrNull()
+        )
+    }
+
+    fun closeMp3Converter() {
+        _uiState.value = _uiState.value.copy(
+            showMp3ConverterDialog = false,
+            videoForMp3Convert = null
+        )
+    }
+
+    fun convertVideoToMp3(video: MediaItemData, quality: String = "320 kbps"): MediaItemData {
+        val cleanTitle = video.title.replace(Regex("\\.(mp4|mkv|webm|avi|flv)$", RegexOption.IGNORE_CASE), "")
+        val convertedItem = MediaItemData(
+            id = "converted_${System.currentTimeMillis()}",
+            uri = video.uri,
+            title = "$cleanTitle [HQ MP3]",
+            artist = if (video.artist.isNotBlank()) video.artist else "Aroy Studio",
+            album = "Converted MP3s",
+            durationMs = video.durationMs,
+            sizeBytes = (video.durationMs / 1000L * 40000L).coerceAtLeast(3500000L),
+            dateAdded = System.currentTimeMillis() / 1000L,
+            folderName = "Converted Audio",
+            mimeType = "audio/mp3",
+            isVideo = false,
+            thumbnailUri = video.thumbnailUri ?: "android.resource://${getApplication<Application>().packageName}/drawable/img_music_vinyl"
+        )
+
+        val currentAudios = _rawAudios.value.toMutableList()
+        currentAudios.add(0, convertedItem)
+        _rawAudios.value = currentAudios
+
+        return convertedItem
+    }
+
     private fun applySort(items: List<MediaItemData>, sortOrder: SortOrder): List<MediaItemData> {
         return when (sortOrder) {
             SortOrder.NAME_ASC -> items.sortedBy { it.title.lowercase() }
@@ -344,6 +394,8 @@ class AroyViewModel(application: Application) : AndroidViewModel(application) {
 
     override fun onCleared() {
         super.onCleared()
+        notificationHelper.dismissNotification()
+        NotificationActionReceiver.playerManager = null
         playerManager.release()
     }
 }

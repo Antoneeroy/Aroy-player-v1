@@ -17,6 +17,7 @@ import androidx.annotation.OptIn
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -55,6 +56,8 @@ import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.filled.VolumeDown
+import androidx.compose.material.icons.filled.VolumeMute
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
@@ -62,6 +65,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledIconButton
@@ -83,6 +87,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -104,7 +109,9 @@ import com.example.data.model.MediaItemData
 import com.example.data.model.PlayerResizeMode
 import com.example.player.PlaybackSnapshot
 import com.example.player.PlayerManager
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
@@ -146,6 +153,14 @@ fun VideoPlayerScreen(
 
     val audioManager = remember { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
     val maxVolume = remember { audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC) }
+    val coroutineScope = rememberCoroutineScope()
+    var gestureDismissJob by remember { mutableStateOf<Job?>(null) }
+    var dragSideIsLeft by remember { mutableStateOf(false) }
+    var volumeFraction by remember {
+        mutableFloatStateOf(
+            (audioManager.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat() / maxVolume.coerceAtLeast(1).toFloat()).coerceIn(0f, 1f)
+        )
+    }
 
     // Subtitle picker launcher
     val subtitlePicker = rememberLauncherForActivityResult(
@@ -235,20 +250,38 @@ fun VideoPlayerScreen(
                 .pointerInput(isLocked) {
                     if (!isLocked) {
                         detectVerticalDragGestures(
+                            onDragStart = { offset ->
+                                dragSideIsLeft = offset.x < size.width / 2f
+                                gestureDismissJob?.cancel()
+                                if (!dragSideIsLeft) {
+                                    val currentVol = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+                                    volumeFraction = (currentVol.toFloat() / maxVolume.coerceAtLeast(1).toFloat()).coerceIn(0f, 1f)
+                                }
+                            },
                             onDragEnd = {
-                                showGestureIndicator = false
+                                gestureDismissJob?.cancel()
+                                gestureDismissJob = coroutineScope.launch {
+                                    delay(900)
+                                    showGestureIndicator = false
+                                }
+                            },
+                            onDragCancel = {
+                                gestureDismissJob?.cancel()
+                                gestureDismissJob = coroutineScope.launch {
+                                    delay(600)
+                                    showGestureIndicator = false
+                                }
                             },
                             onVerticalDrag = { change, dragAmount ->
-                                val x = change.position.x
-                                val isLeftSide = x < size.width / 2
-                                val delta = -dragAmount / size.height
+                                // Slow, calibrated sensitivity: full-screen height vertical drag = ~0.65 change
+                                val slowDelta = -dragAmount / (size.height * 1.5f)
 
-                                if (isLeftSide) {
-                                    // Brightness control
+                                if (dragSideIsLeft) {
+                                    // Brightness control on the left side (Slow & smooth)
                                     activity?.let { act ->
                                         val lp = act.window.attributes
                                         var currentB = if (lp.screenBrightness < 0f) 0.5f else lp.screenBrightness
-                                        currentB = (currentB + delta * 2).coerceIn(0.01f, 1.0f)
+                                        currentB = (currentB + slowDelta).coerceIn(0.01f, 1.0f)
                                         lp.screenBrightness = currentB
                                         act.window.attributes = lp
 
@@ -258,16 +291,18 @@ fun VideoPlayerScreen(
                                         showGestureIndicator = true
                                     }
                                 } else {
-                                    // Volume control
-                                    val currentVol = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
-                                    val step = if (delta > 0) 1 else -1
-                                    val targetVol = (currentVol + step).coerceIn(0, maxVolume)
+                                    // Volume control on the right side (Slow continuous accumulation)
+                                    volumeFraction = (volumeFraction + slowDelta).coerceIn(0f, 1f)
+                                    val targetVol = kotlin.math.round(volumeFraction * maxVolume).toInt().coerceIn(0, maxVolume)
                                     audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, targetVol, 0)
 
-                                    val progress = targetVol.toFloat() / maxVolume.toFloat()
-                                    gestureIndicatorText = "${(progress * 100).toInt()}%"
-                                    gestureIndicatorIcon = Icons.Default.VolumeUp
-                                    gestureIndicatorProgress = progress
+                                    gestureIndicatorProgress = volumeFraction
+                                    gestureIndicatorText = "${(volumeFraction * 100).toInt()}%"
+                                    gestureIndicatorIcon = when {
+                                        targetVol == 0 -> Icons.Default.VolumeMute
+                                        targetVol < maxVolume / 2 -> Icons.Default.VolumeDown
+                                        else -> Icons.Default.VolumeUp
+                                    }
                                     showGestureIndicator = true
                                 }
                             }
@@ -284,29 +319,42 @@ fun VideoPlayerScreen(
             modifier = Modifier.align(Alignment.Center)
         ) {
             Card(
-                colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.75f)),
-                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.82f)),
+                shape = RoundedCornerShape(20.dp),
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.25f)),
                 modifier = Modifier.padding(16.dp)
             ) {
                 Column(
-                    modifier = Modifier.padding(20.dp),
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     gestureIndicatorIcon?.let { icon ->
                         Icon(
                             imageVector = icon,
                             contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(36.dp)
+                            tint = Color(0xFF38BDF8),
+                            modifier = Modifier.size(38.dp)
                         )
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
                     Text(
                         text = gestureIndicatorText ?: "",
                         color = Color.White,
-                        fontSize = 18.sp,
+                        fontSize = 17.sp,
                         fontWeight = FontWeight.Bold
                     )
+                    if (gestureIndicatorProgress > 0f) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        LinearProgressIndicator(
+                            progress = { gestureIndicatorProgress },
+                            modifier = Modifier
+                                .width(130.dp)
+                                .height(6.dp)
+                                .clip(RoundedCornerShape(3.dp)),
+                            color = Color(0xFF38BDF8),
+                            trackColor = Color.White.copy(alpha = 0.22f)
+                        )
+                    }
                 }
             }
         }

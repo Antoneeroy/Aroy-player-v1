@@ -1,0 +1,125 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="480dp"
+    android:height="320dp"
+    android:viewportWidth="480"
+    android:viewportHeight="320">
+
+    <!-- Cosmic Space Deep Background Gradient -->
+    <path
+        android:pathData="M0,0h480v320h-480z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="0"
+                android:startY="0"
+                android:endX="480"
+                android:endY="320"
+                android:type="linear">
+                <item android:color="#FF0F172A" android:offset="0.0" />
+                <item android:color="#FF1E1B4B" android:offset="0.35" />
+                <item android:color="#FF311042" android:offset="0.7" />
+                <item android:color="#FF090D16" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Starfield dots -->
+    <path android:pathData="M45,35m-2,0a2,2 0,1 1,4 0a2,2 0,1 1,-4 0" android:fillColor="#FFFFFFFF" />
+    <path android:pathData="M115,22m-1.5,0a1.5,1.5 0,1 1,3 0a1.5,1.5 0,1 1,-3 0" android:fillColor="#AAFFFFFF" />
+    <path android:pathData="M210,48m-2,0a2,2 0,1 1,4 0a2,2 0,1 1,-4 0" android:fillColor="#FFBAE6FD" />
+    <path android:pathData="M320,30m-1.5,0a1.5,1.5 0,1 1,3 0a1.5,1.5 0,1 1,-3 0" android:fillColor="#FFFFFFFF" />
+    <path android:pathData="M410,55m-2,0a2,2 0,1 1,4 0a2,2 0,1 1,-4 0" android:fillColor="#FFDDD6FE" />
+    <path android:pathData="M160,80m-1.5,0a1.5,1.5 0,1 1,3 0a1.5,1.5 0,1 1,-3 0" android:fillColor="#AAFFFFFF" />
+    <path android:pathData="M370,95m-2,0a2,2 0,1 1,4 0a2,2 0,1 1,-4 0" android:fillColor="#FFFFFFFF" />
+
+    <!-- Giant Glowing Sci-Fi Moon / Alien Planet with Ring -->
+    <path
+        android:pathData="M360,110m-60,0a60,60 0,1 1,120 0a60,60 0,1 1,-120 0">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="320"
+                android:startY="70"
+                android:endX="400"
+                android:endY="150"
+                android:type="linear">
+                <item android:color="#FFC084FC" android:offset="0.0" />
+                <item android:color="#FF7C3AED" android:offset="0.6" />
+                <item android:color="#FF4C1D95" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- Planetary Ring -->
+    <path
+        android:pathData="M270,120 Q360,155 450,110 Q360,140 270,120 Z"
+        android:fillColor="#77E9D5FF" />
+
+    <!-- Futuristic City Spires & Cyber Towers Silhouette -->
+    <path
+        android:pathData="M0,320 L0,220 L30,220 L30,260 L60,260 L60,190 L75,190 L75,160 L85,160 L85,190 L100,190 L100,270 L140,270 L140,170 L155,170 L155,140 L165,140 L165,170 L180,170 L180,280 L220,280 L220,210 L250,210 L250,290 L310,290 L310,180 L330,180 L330,150 L340,150 L340,180 L360,180 L360,300 L410,300 L410,200 L440,200 L440,270 L480,270 L480,320 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="240"
+                android:startY="140"
+                android:endX="240"
+                android:endY="320"
+                android:type="linear">
+                <item android:color="#FF1E293B" android:offset="0.0" />
+                <item android:color="#FF0F172A" android:offset="0.5" />
+                <item android:color="#FF030712" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Glowing Cyber Windows and Beacons in Spire City -->
+    <path android:pathData="M80,165m-2,0a2,2 0,1 1,4 0a2,2 0,1 1,-4 0" android:fillColor="#FF38BDF8" />
+    <path android:pathData="M160,145m-2,0a2,2 0,1 1,4 0a2,2 0,1 1,-4 0" android:fillColor="#FFF43F5E" />
+    <path android:pathData="M335,155m-2,0a2,2 0,1 1,4 0a2,2 0,1 1,-4 0" android:fillColor="#FF38BDF8" />
+    <path android:pathData="M65,210h10v2h-10z M65,220h10v2h-10z M65,230h10v2h-10z" android:fillColor="#FF38BDF8" />
+    <path android:pathData="M148,190h15v2h-15z M148,200h15v2h-15z M148,210h15v2h-15z" android:fillColor="#FFA855F7" />
+    <path android:pathData="M320,200h15v2h-15z M320,215h15v2h-15z" android:fillColor="#FF38BDF8" />
+
+    <!-- Sleek Futuristic Star Cruiser Spacecraft in Flight -->
+    <!-- Thruster Glow Trails -->
+    <path
+        android:pathData="M90,148 L170,142 L170,145 L90,150 Z"
+        android:fillColor="#8838BDF8" />
+    <path
+        android:pathData="M90,156 L170,150 L170,153 L90,158 Z"
+        android:fillColor="#88818CF8" />
+
+    <!-- Spaceship Hull -->
+    <path
+        android:pathData="M245,135 L170,138 L160,148 L170,158 L245,161 L265,148 Z"
+        android:fillColor="#FFE2E8F0" />
+    <!-- Wings -->
+    <path
+        android:pathData="M210,136 L150,118 L180,142 Z"
+        android:fillColor="#FF94A3B8" />
+    <path
+        android:pathData="M210,160 L150,178 L180,154 Z"
+        android:fillColor="#FF64748B" />
+    <!-- Cockpit Canopy (Neon Cyan Glass) -->
+    <path
+        android:pathData="M225,145 L250,148 L225,151 Z"
+        android:fillColor="#FF00E5FF" />
+    <!-- Wingtip Lights -->
+    <path android:pathData="M150,118m-3,0a3,3 0,1 1,6 0a3,3 0,1 1,-6 0" android:fillColor="#FF38BDF8" />
+    <path android:pathData="M150,178m-3,0a3,3 0,1 1,6 0a3,3 0,1 1,-6 0" android:fillColor="#FFF43F5E" />
+
+    <!-- Bottom Low Light Gloss Vignette Gradient -->
+    <path
+        android:pathData="M0,265h480v55h-480z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="240"
+                android:startY="265"
+                android:endX="240"
+                android:endY="320"
+                android:type="linear">
+                <item android:color="#000A0E1A" android:offset="0.0" />
+                <item android:color="#D90A0E1A" android:offset="0.5" />
+                <item android:color="#F20A0E1A" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+</vector>

@@ -10,6 +10,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.Coil
+import coil.ImageLoader
+import coil.decode.VideoFrameDecoder
 import com.example.ui.AroyViewModel
 import com.example.ui.screens.HomeScreen
 import com.example.ui.theme.MyApplicationTheme
@@ -18,6 +21,16 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        // Configure Coil to decode video frames for thumbnails
+        val imageLoader = ImageLoader.Builder(this)
+            .components {
+                add(VideoFrameDecoder.Factory())
+            }
+            .crossfade(true)
+            .build()
+        Coil.setImageLoader(imageLoader)
+
         setContent {
             val viewModel: AroyViewModel = viewModel()
             val uiState by viewModel.uiState.collectAsStateWithLifecycle()

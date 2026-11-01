@@ -1,0 +1,110 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="480dp"
+    android:height="320dp"
+    android:viewportWidth="480"
+    android:viewportHeight="320">
+
+    <!-- Cyberpunk Night City Atmosphere Background -->
+    <path
+        android:pathData="M0,0h480v320h-480z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="0"
+                android:startY="0"
+                android:endX="480"
+                android:endY="320"
+                android:type="linear">
+                <item android:color="#FF030712" android:offset="0.0" />
+                <item android:color="#FF081528" android:offset="0.4" />
+                <item android:color="#FF1A0B2E" android:offset="0.8" />
+                <item android:color="#FF05050A" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Rain streak lines -->
+    <path android:pathData="M30,10 L15,50 M120,5 L105,45 M220,15 L205,55 M310,2 L295,42 M410,20 L395,60 M70,80 L55,120 M180,90 L165,130 M270,70 L255,110 M380,85 L365,125 M450,75 L435,115"
+        android:strokeWidth="1"
+        android:strokeColor="#2238BDF8" />
+
+    <!-- Neon Cyber City Skyscrapers in Fog -->
+    <path
+        android:pathData="M0,320 L0,150 L50,150 L50,110 L90,110 L90,180 L130,180 L130,90 L170,90 L170,190 L320,190 L320,80 L360,80 L360,160 L410,160 L410,120 L480,120 L480,320 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="240"
+                android:startY="80"
+                android:endX="240"
+                android:endY="320"
+                android:type="linear">
+                <item android:color="#FF0F172A" android:offset="0.0" />
+                <item android:color="#FF090D16" android:offset="0.6" />
+                <item android:color="#FF020617" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Neon Billboards & Cyber Beacons (Cyan and Magenta Glow) -->
+    <path android:pathData="M60,125h20v45h-20z" android:fillColor="#33EC4899" />
+    <path android:pathData="M65,130h10v35h-10z" android:fillColor="#FFEC4899" />
+
+    <path android:pathData="M375,100h25v50h-25z" android:fillColor="#3338BDF8" />
+    <path android:pathData="M380,105h15v40h-15z" android:fillColor="#FF38BDF8" />
+
+    <!-- Huge Mechanical Robotic VFX Cyborg Warrior in Center -->
+    <!-- Shoulder Armor Plates -->
+    <path
+        android:pathData="M160,320 L180,240 L220,210 L260,210 L300,240 L320,320 Z"
+        android:fillColor="#FF334155" />
+    <path
+        android:pathData="M185,245 L215,220 L240,225 L210,255 Z"
+        android:fillColor="#FF475569" />
+    <path
+        android:pathData="M295,245 L265,220 L240,225 L270,255 Z"
+        android:fillColor="#FF475569" />
+
+    <!-- Cyborg Head / Robotic Helmet -->
+    <path
+        android:pathData="M240,140m-35,0a35,45 0,1 1,70 0a35,45 0,1 1,-70 0"
+        android:fillColor="#FF1E293B" />
+    <path
+        android:pathData="M220,130 L260,130 L255,155 L240,165 L225,155 Z"
+        android:fillColor="#FF0F172A" />
+
+    <!-- Glowing Cybernetic Optical Eye Visor (Electric Cyan Sheen) -->
+    <path
+        android:pathData="M218,135h44v7h-44z"
+        android:fillColor="#FF38BDF8" />
+    <path
+        android:pathData="M225,137h30v3h-30z"
+        android:fillColor="#FFFFFFFF" />
+    <path android:pathData="M252,138.5m-3,0a3,3 0,1 1,6 0a3,3 0,1 1,-6 0" android:fillColor="#FF00E5FF" />
+
+    <!-- Digital HUD / Circuit Lines on Cheeks -->
+    <path android:pathData="M222,148 L228,155 L228,162 M258,148 L252,155 L252,162"
+        android:strokeWidth="1.5"
+        android:strokeColor="#FF38BDF8" />
+
+    <!-- Holographic VFX Reticle in Foreground -->
+    <path android:pathData="M240,138m-22,0a22,22 0,1 1,44 0a22,22 0,1 1,-44 0"
+        android:strokeWidth="1"
+        android:strokeColor="#5500E5FF" />
+
+    <!-- Bottom Low Light Gloss Vignette Gradient -->
+    <path
+        android:pathData="M0,265h480v55h-480z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="240"
+                android:startY="265"
+                android:endX="240"
+                android:endY="320"
+                android:type="linear">
+                <item android:color="#000A0E1A" android:offset="0.0" />
+                <item android:color="#D90A0E1A" android:offset="0.5" />
+                <item android:color="#F20A0E1A" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+</vector>

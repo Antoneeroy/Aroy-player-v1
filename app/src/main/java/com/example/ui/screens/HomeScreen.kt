@@ -8,8 +8,12 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.res.painterResource
+import com.example.R
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,6 +37,7 @@ import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.QueueMusic
@@ -87,7 +92,9 @@ import com.example.ui.VideoSubTab
 import com.example.ui.components.AddToPlaylistDialog
 import com.example.ui.components.AudioPlayerSheet
 import com.example.ui.components.CreatePlaylistDialog
+import com.example.ui.components.MediaNotificationWidget
 import com.example.ui.components.MiniPlayerBar
+import com.example.ui.components.Mp3ConverterDialog
 import com.example.ui.components.SleepTimerDialog
 import com.example.ui.components.SortOrderDialog
 import com.example.ui.components.StreamUrlDialog
@@ -127,6 +134,13 @@ fun HomeScreen(viewModel: AroyViewModel) {
 
     var isSearchActive by remember { mutableStateOf(false) }
     var showSortDialog by remember { mutableStateOf(false) }
+    var isNotificationWidgetDismissed by remember { mutableStateOf(false) }
+
+    LaunchedEffect(playbackSnapshot.currentMedia) {
+        if (playbackSnapshot.currentMedia != null) {
+            isNotificationWidgetDismissed = false
+        }
+    }
 
     // Permissions launcher
     val permissionsToRequest = remember {
@@ -238,6 +252,22 @@ fun HomeScreen(viewModel: AroyViewModel) {
         )
     }
 
+    if (uiState.showMp3ConverterDialog) {
+        Mp3ConverterDialog(
+            allVideos = filteredVideos,
+            initialVideo = uiState.videoForMp3Convert,
+            isDark = isDark,
+            onConvert = { video, quality ->
+                viewModel.convertVideoToMp3(video, quality)
+            },
+            onPlayConverted = { convertedAudio ->
+                viewModel.closeMp3Converter()
+                viewModel.playMediaItem(convertedAudio, filteredAudios)
+            },
+            onDismiss = { viewModel.closeMp3Converter() }
+        )
+    }
+
     // Root Scaffold with Glossy Red-Blue-White (5% mix) Background
     Scaffold(
         containerColor = Color.Transparent,
@@ -261,33 +291,25 @@ fun HomeScreen(viewModel: AroyViewModel) {
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.clickable { viewModel.selectBottomNav(BottomNavDestination.VIDEO) }
                     ) {
-                        // Liquid Glass App Logo Badge (inspired by 1793368649701 glowing logo)
-                        Box(
+                        // Official Luxury 3D Gold AROY PLAYER Logo
+                        Image(
+                            painter = painterResource(id = R.drawable.ic_aroy_logo),
+                            contentDescription = "Aroy Player Logo",
                             modifier = Modifier
-                                .size(42.dp)
+                                .size(44.dp)
                                 .clip(RoundedCornerShape(13.dp))
-                                .background(
+                                .border(
+                                    1.2.dp,
                                     Brush.linearGradient(
-                                        listOf(Color(0xFF38BDF8), Color(0xFFA855F7), Color(0xFF00D26A))
-                                    )
+                                        listOf(
+                                            Color(0xFFFFD700),
+                                            Color(0xFFE2B755),
+                                            Color(0xFFB45309)
+                                        )
+                                    ),
+                                    RoundedCornerShape(13.dp)
                                 )
-                                .padding(2.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .clip(RoundedCornerShape(11.dp))
-                                    .background(if (isDark) Color(0xCC0C131F) else Color(0xEEFFFFFF)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.PlayArrow,
-                                    contentDescription = "Aroy Player Logo",
-                                    tint = AccentGreen,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
-                        }
+                        )
 
                         Spacer(modifier = Modifier.width(10.dp))
 
@@ -353,6 +375,31 @@ fun HomeScreen(viewModel: AroyViewModel) {
                                 tint = if (isDark) Color(0xFFFBBF24) else Color(0xFF4F46E5),
                                 modifier = Modifier.size(22.dp)
                             )
+                        }
+
+                        // Notification Widget Toggle Button (shows when media is loaded)
+                        if (playbackSnapshot.currentMedia != null) {
+                            IconButton(
+                                onClick = { isNotificationWidgetDismissed = !isNotificationWidgetDismissed },
+                                modifier = Modifier.testTag("notification_widget_toggle_button")
+                            ) {
+                                BadgedBox(
+                                    badge = {
+                                        Surface(
+                                            shape = CircleShape,
+                                            color = AccentGreen,
+                                            modifier = Modifier.size(8.dp)
+                                        ) {}
+                                    }
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.NotificationsActive,
+                                        contentDescription = "Toggle Notification Widget",
+                                        tint = if (!isNotificationWidgetDismissed) AccentGreen else primaryTextColor,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                }
+                            }
                         }
 
                         if (uiState.currentBottomNav == BottomNavDestination.VIDEO) {
@@ -657,6 +704,27 @@ fun HomeScreen(viewModel: AroyViewModel) {
                 }
             }
 
+            // Interactive In-App Media Notification Widget ("notification widget add karo")
+            if (playbackSnapshot.currentMedia != null && !isNotificationWidgetDismissed) {
+                MediaNotificationWidget(
+                    snapshot = playbackSnapshot,
+                    isDark = isDark,
+                    onOpenPlayer = {
+                        if (playbackSnapshot.currentMedia?.isVideo == true) {
+                            viewModel.setVideoPlayerOpen(true)
+                        } else {
+                            viewModel.setAudioSheetExpanded(true)
+                        }
+                    },
+                    onPlayPause = { viewModel.playerManager.playPauseToggle() },
+                    onNext = { viewModel.playerManager.playNext() },
+                    onPrevious = { viewModel.playerManager.playPrevious() },
+                    onRewind10s = { viewModel.playerManager.rewind10s() },
+                    onForward10s = { viewModel.playerManager.forward10s() },
+                    onDismiss = { isNotificationWidgetDismissed = true }
+                )
+            }
+
             // Main Content Area based on BottomNav Destination
             Box(modifier = Modifier.fillMaxSize()) {
                 when (uiState.currentBottomNav) {
@@ -669,6 +737,7 @@ fun HomeScreen(viewModel: AroyViewModel) {
                                     isScanning = uiState.isScanning,
                                     onVideoClick = { video -> viewModel.playMediaItem(video, filteredVideos) },
                                     onAddToPlaylist = { video -> viewModel.setShowAddToPlaylist(video) },
+                                    onConvertMp3 = { video -> viewModel.openMp3Converter(video) },
                                     onRefreshScan = { viewModel.scanStorage() }
                                 )
                             }
@@ -734,6 +803,7 @@ fun HomeScreen(viewModel: AroyViewModel) {
                                 viewModel.selectVideoSubTab(VideoSubTab.PLAYLIST)
                             },
                             onOpenThemePicker = { viewModel.setSettingsOpen(true) },
+                            onOpenMp3Converter = { viewModel.openMp3Converter(null) },
                             onRescanStorage = { viewModel.scanStorage() }
                         )
                     }

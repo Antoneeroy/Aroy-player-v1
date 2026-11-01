@@ -1,0 +1,122 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="480dp"
+    android:height="320dp"
+    android:viewportWidth="480"
+    android:viewportHeight="320">
+
+    <!-- Dark Blazing Night Sky Background -->
+    <path
+        android:pathData="M0,0h480v320h-480z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="240"
+                android:startY="0"
+                android:endX="240"
+                android:endY="320"
+                android:type="linear">
+                <item android:color="#FF0B0502" android:offset="0.0" />
+                <item android:color="#FF260B04" android:offset="0.3" />
+                <item android:color="#FF451A03" android:offset="0.6" />
+                <item android:color="#FF1A0501" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Outer Fire Corona -->
+    <path
+        android:pathData="M240,230m-140,0a140,110 0,1 1,280 0a140,110 0,1 1,-280 0">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="240"
+                android:startY="120"
+                android:endX="240"
+                android:endY="320"
+                android:type="linear">
+                <item android:color="#33B91C1C" android:offset="0.0" />
+                <item android:color="#55EA580C" android:offset="0.5" />
+                <item android:color="#88F97316" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Giant Dynamic Fire Vortex / Flame Tongues -->
+    <path
+        android:pathData="M110,310 Q140,210 180,160 Q210,120 230,60 Q250,110 280,150 Q320,200 370,310 Q300,290 240,310 Q180,290 110,310 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="240"
+                android:startY="60"
+                android:endX="240"
+                android:endY="310"
+                android:type="linear">
+                <item android:color="#FFDC2626" android:offset="0.0" />
+                <item android:color="#FFEA580C" android:offset="0.35" />
+                <item android:color="#FFF97316" android:offset="0.7" />
+                <item android:color="#FF991B1B" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Inner Blazing Golden Core Flame -->
+    <path
+        android:pathData="M160,310 Q190,225 215,180 Q235,140 240,95 Q250,135 270,175 Q295,220 320,310 Q280,298 240,305 Q200,298 160,310 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="240"
+                android:startY="95"
+                android:endX="240"
+                android:endY="310"
+                android:type="linear">
+                <item android:color="#FFFEF08A" android:offset="0.0" />
+                <item android:color="#FFFBBF24" android:offset="0.3" />
+                <item android:color="#FFF59E0B" android:offset="0.6" />
+                <item android:color="#FFEA580C" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Ultra Hot White Center Core -->
+    <path
+        android:pathData="M200,310 Q220,250 235,210 Q240,165 242,130 Q246,165 250,205 Q265,245 280,310 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="240"
+                android:startY="130"
+                android:endX="240"
+                android:endY="310"
+                android:type="linear">
+                <item android:color="#FFFFFFFF" android:offset="0.0" />
+                <item android:color="#FFFFFBEB" android:offset="0.4" />
+                <item android:color="#FFFEF08A" android:offset="0.8" />
+                <item android:color="#FFFBBF24" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Embers and Fiery Sparks Flying upward -->
+    <path android:pathData="M140,110m-3,0a3,3 0,1 1,6 0a3,3 0,1 1,-6 0" android:fillColor="#FFFBBF24" />
+    <path android:pathData="M185,75m-2.5,0a2.5,2.5 0,1 1,5 0a2.5,2.5 0,1 1,-5 0" android:fillColor="#FFFEF08A" />
+    <path android:pathData="M240,40m-3,0a3,3 0,1 1,6 0a3,3 0,1 1,-6 0" android:fillColor="#FFFFFFFF" />
+    <path android:pathData="M295,65m-2.5,0a2.5,2.5 0,1 1,5 0a2.5,2.5 0,1 1,-5 0" android:fillColor="#FFFEF08A" />
+    <path android:pathData="M340,100m-3,0a3,3 0,1 1,6 0a3,3 0,1 1,-6 0" android:fillColor="#FFFBBF24" />
+    <path android:pathData="M110,160m-2,0a2,2 0,1 1,4 0a2,2 0,1 1,-4 0" android:fillColor="#FFF97316" />
+    <path android:pathData="M375,150m-2.5,0a2.5,2.5 0,1 1,5 0a2.5,2.5 0,1 1,-5 0" android:fillColor="#FFF97316" />
+
+    <!-- Bottom Low Light Gloss Vignette Gradient -->
+    <path
+        android:pathData="M0,265h480v55h-480z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="240"
+                android:startY="265"
+                android:endX="240"
+                android:endY="320"
+                android:type="linear">
+                <item android:color="#000A0E1A" android:offset="0.0" />
+                <item android:color="#D90A0E1A" android:offset="0.5" />
+                <item android:color="#F20A0E1A" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+</vector>

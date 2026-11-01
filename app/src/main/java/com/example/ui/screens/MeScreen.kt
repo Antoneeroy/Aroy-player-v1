@@ -1,9 +1,12 @@
 package com.example.ui.screens
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.res.painterResource
+import com.example.R
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -70,6 +73,12 @@ import com.example.ui.theme.WordColorBlack
 import com.example.ui.theme.WordColorDarkSlate
 import com.example.ui.theme.WordColorLightSilver
 
+import com.example.ui.theme.LowLightGlossBadgeBorder
+import com.example.ui.theme.LowLightGlossBadgeContainer
+import com.example.ui.theme.LowLightGlossBadgeText
+import com.example.ui.theme.LowLightGlossCyan
+import com.example.ui.theme.LowLightGlossSilver
+
 data class MeToolItem(
     val id: String,
     val title: String,
@@ -84,9 +93,9 @@ fun MeScreen(
     onOpenSettings: () -> Unit,
     onOpenHistory: () -> Unit,
     onOpenThemePicker: () -> Unit,
+    onOpenMp3Converter: () -> Unit = {},
     onRescanStorage: () -> Unit
 ) {
-    var showMp3ConverterDialog by remember { mutableStateOf(false) }
     var showPrivacyDialog by remember { mutableStateOf(false) }
     var showFileTransferDialog by remember { mutableStateOf(false) }
     var showRecycleBinDialog by remember { mutableStateOf(false) }
@@ -150,20 +159,25 @@ fun MeScreen(
                         .padding(18.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Box(
+                    // Official 3D Golden Aroy Player Logo
+                    Image(
+                        painter = painterResource(id = R.drawable.ic_aroy_logo),
+                        contentDescription = "Aroy Player Logo",
                         modifier = Modifier
-                            .size(54.dp)
-                            .clip(CircleShape)
-                            .background(AccentGreen.copy(alpha = 0.2f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = null,
-                            tint = AccentGreen,
-                            modifier = Modifier.size(32.dp)
-                        )
-                    }
+                            .size(56.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .border(
+                                1.5.dp,
+                                Brush.linearGradient(
+                                    listOf(
+                                        Color(0xFFFFD700),
+                                        Color(0xFFE2B755),
+                                        Color(0xFFB45309)
+                                    )
+                                ),
+                                RoundedCornerShape(16.dp)
+                            )
+                    )
 
                     Spacer(modifier = Modifier.width(14.dp))
 
@@ -177,12 +191,13 @@ fun MeScreen(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Surface(
-                                shape = CircleShape,
-                                color = AccentGreen
+                                shape = RoundedCornerShape(8.dp),
+                                color = LowLightGlossBadgeContainer,
+                                border = BorderStroke(0.8.dp, LowLightGlossBadgeBorder)
                             ) {
                                 Text(
-                                    text = "VIP Free",
-                                    color = Color.Black,
+                                    text = "v2.1.0 VIP",
+                                    color = LowLightGlossBadgeText,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
@@ -247,7 +262,7 @@ fun MeScreen(
                                         .clickable {
                                             when (tool.id) {
                                                 "downloads" -> onRescanStorage()
-                                                "mp3_converter" -> showMp3ConverterDialog = true
+                                                "mp3_converter" -> onOpenMp3Converter()
                                                 "privacy" -> showPrivacyDialog = true
                                                 "file_transfer" -> showFileTransferDialog = true
                                                 "media_manage" -> onRescanStorage()
@@ -376,22 +391,81 @@ fun MeScreen(
                 }
             }
         }
-    }
 
-    // MP3 Converter Dialog
-    if (showMp3ConverterDialog) {
-        AlertDialog(
-            onDismissRequest = { showMp3ConverterDialog = false },
-            title = { Text("MP3 Converter") },
-            text = {
-                Text("Select any video from the Videos tab and tap 'Play in Audio Mode' to convert and play audio in background without keeping the screen turned on.")
-            },
-            confirmButton = {
-                TextButton(onClick = { showMp3ConverterDialog = false }) {
-                    Text("OK")
+        // Official AROY PLAYER Brand Showcase Card
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(22.dp),
+                colors = CardDefaults.cardColors(containerColor = cardBackground),
+                border = cardBorder
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Image(
+                        painter = painterResource(id = R.drawable.ic_aroy_logo),
+                        contentDescription = "Aroy Player Official Emblem",
+                        modifier = Modifier
+                            .size(64.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .border(
+                                1.5.dp,
+                                Brush.linearGradient(
+                                    listOf(
+                                        Color(0xFFFFD700),
+                                        Color(0xFFE2B755),
+                                        Color(0xFFB45309)
+                                    )
+                                ),
+                                RoundedCornerShape(16.dp)
+                            )
+                    )
+                    Spacer(modifier = Modifier.width(14.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "AROY PLAYER",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = titleColor,
+                                letterSpacing = 1.sp
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = LowLightGlossBadgeContainer,
+                                border = BorderStroke(0.8.dp, LowLightGlossBadgeBorder)
+                            ) {
+                                Text(
+                                    text = "v2.1.0",
+                                    color = LowLightGlossBadgeText,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp)
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Liquid Glass Media Engine",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = LowLightGlossCyan,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Ultra Smooth 4K HDR Video & Hi-Res MP3 Player",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = subtitleColor
+                        )
+                    }
                 }
             }
-        )
+        }
     }
 
     // Privacy Dialog
