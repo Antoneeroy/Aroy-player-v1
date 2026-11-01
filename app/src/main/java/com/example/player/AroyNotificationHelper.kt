@@ -138,8 +138,9 @@ class AroyNotificationHelper(private val context: Context) {
             )
         mediaSession?.setMetadata(metadataBuilder.build())
 
-        // Intent to re-open MainActivity on tapping notification
+        // Explicit Intent to re-open MainActivity on tapping notification
         val openAppIntent = Intent(context, MainActivity::class.java).apply {
+            setPackage(context.packageName)
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
         val contentPendingIntent = PendingIntent.getActivity(
@@ -149,32 +150,44 @@ class AroyNotificationHelper(private val context: Context) {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        // Action intents for Previous, Play/Pause, Next, Stop
+        // Explicit Action intents for Previous, Play/Pause, Next, Stop
         val prevPendingIntent = PendingIntent.getBroadcast(
             context,
             1,
-            Intent(context, NotificationActionReceiver::class.java).apply { action = ACTION_PREV },
+            Intent(context, NotificationActionReceiver::class.java).apply {
+                setPackage(context.packageName)
+                action = ACTION_PREV
+            },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
         val playPausePendingIntent = PendingIntent.getBroadcast(
             context,
             2,
-            Intent(context, NotificationActionReceiver::class.java).apply { action = ACTION_PLAY_PAUSE },
+            Intent(context, NotificationActionReceiver::class.java).apply {
+                setPackage(context.packageName)
+                action = ACTION_PLAY_PAUSE
+            },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
         val nextPendingIntent = PendingIntent.getBroadcast(
             context,
             3,
-            Intent(context, NotificationActionReceiver::class.java).apply { action = ACTION_NEXT },
+            Intent(context, NotificationActionReceiver::class.java).apply {
+                setPackage(context.packageName)
+                action = ACTION_NEXT
+            },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
         val stopPendingIntent = PendingIntent.getBroadcast(
             context,
             4,
-            Intent(context, NotificationActionReceiver::class.java).apply { action = ACTION_STOP },
+            Intent(context, NotificationActionReceiver::class.java).apply {
+                setPackage(context.packageName)
+                action = ACTION_STOP
+            },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 

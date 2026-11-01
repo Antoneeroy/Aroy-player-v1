@@ -452,6 +452,8 @@ class AroyViewModel(application: Application) : AndroidViewModel(application) {
 
     fun convertVideoToMp3(video: MediaItemData, quality: String = "320 kbps"): MediaItemData {
         val cleanTitle = video.title.replace(Regex("\\.(mp4|mkv|webm|avi|flv)$", RegexOption.IGNORE_CASE), "")
+            .replace(Regex("[/\\\\:*?\"<>|]"), "_")
+            .take(100)
         val convertedItem = MediaItemData(
             id = "converted_${System.currentTimeMillis()}",
             uri = video.uri,

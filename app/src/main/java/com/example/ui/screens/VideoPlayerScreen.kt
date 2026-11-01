@@ -279,31 +279,39 @@ fun VideoPlayerScreen(
                                 if (dragSideIsLeft) {
                                     // Brightness control on the left side (Slow & smooth)
                                     activity?.let { act ->
-                                        val lp = act.window.attributes
-                                        var currentB = if (lp.screenBrightness < 0f) 0.5f else lp.screenBrightness
-                                        currentB = (currentB + slowDelta).coerceIn(0.01f, 1.0f)
-                                        lp.screenBrightness = currentB
-                                        act.window.attributes = lp
+                                        try {
+                                            val lp = act.window.attributes
+                                            var currentB = if (lp.screenBrightness < 0f) 0.5f else lp.screenBrightness
+                                            currentB = (currentB + slowDelta).coerceIn(0.01f, 1.0f)
+                                            lp.screenBrightness = currentB
+                                            act.window.attributes = lp
 
-                                        gestureIndicatorText = "${(currentB * 100).toInt()}%"
-                                        gestureIndicatorIcon = Icons.Default.BrightnessMedium
-                                        gestureIndicatorProgress = currentB
-                                        showGestureIndicator = true
+                                            gestureIndicatorText = "${(currentB * 100).toInt()}%"
+                                            gestureIndicatorIcon = Icons.Default.BrightnessMedium
+                                            gestureIndicatorProgress = currentB
+                                            showGestureIndicator = true
+                                        } catch (e: Exception) {
+                                            // Safe window attribute handling
+                                        }
                                     }
                                 } else {
                                     // Volume control on the right side (Slow continuous accumulation)
-                                    volumeFraction = (volumeFraction + slowDelta).coerceIn(0f, 1f)
-                                    val targetVol = kotlin.math.round(volumeFraction * maxVolume).toInt().coerceIn(0, maxVolume)
-                                    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, targetVol, 0)
+                                    try {
+                                        volumeFraction = (volumeFraction + slowDelta).coerceIn(0f, 1f)
+                                        val targetVol = kotlin.math.round(volumeFraction * maxVolume).toInt().coerceIn(0, maxVolume)
+                                        audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, targetVol, 0)
 
-                                    gestureIndicatorProgress = volumeFraction
-                                    gestureIndicatorText = "${(volumeFraction * 100).toInt()}%"
-                                    gestureIndicatorIcon = when {
-                                        targetVol == 0 -> Icons.Default.VolumeMute
-                                        targetVol < maxVolume / 2 -> Icons.Default.VolumeDown
-                                        else -> Icons.Default.VolumeUp
+                                        gestureIndicatorProgress = volumeFraction
+                                        gestureIndicatorText = "${(volumeFraction * 100).toInt()}%"
+                                        gestureIndicatorIcon = when {
+                                            targetVol == 0 -> Icons.Default.VolumeMute
+                                            targetVol < maxVolume / 2 -> Icons.Default.VolumeDown
+                                            else -> Icons.Default.VolumeUp
+                                        }
+                                        showGestureIndicator = true
+                                    } catch (e: Exception) {
+                                        // Safe stream volume handling (e.g. Do Not Disturb mode restrictions)
                                     }
-                                    showGestureIndicator = true
                                 }
                             }
                         )

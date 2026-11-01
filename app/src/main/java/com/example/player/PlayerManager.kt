@@ -139,12 +139,49 @@ class PlayerManager(private val context: Context) {
         exoPlayer = player
     }
 
+    companion object {
+        fun isSafeMediaUri(uriStr: String): Boolean {
+            val trimmed = uriStr.trim()
+            if (trimmed.isEmpty() || trimmed.length > 4096) return false
+
+            // Block directory traversal attempts
+            if (trimmed.contains("../") || trimmed.contains("..\\")) return false
+
+            // Prevent Local File Inclusion (LFI) & Private Sandbox directory probing
+            val lower = trimmed.lowercase()
+            if (lower.startsWith("file:///data/") ||
+                lower.startsWith("file:///data/data/") ||
+                lower.startsWith("file:///data/user/") ||
+                lower.startsWith("file:///proc/") ||
+                lower.startsWith("file:///sys/") ||
+                lower.startsWith("file:///etc/") ||
+                lower.startsWith("javascript:") ||
+                lower.startsWith("data:") ||
+                lower.startsWith("intent:") ||
+                lower.startsWith("blob:")
+            ) {
+                return false
+            }
+
+            return true
+        }
+    }
+
     fun playMedia(
         item: MediaItemData,
         playlist: List<MediaItemData> = emptyList(),
         startPositionMs: Long = 0L,
         subtitleUri: Uri? = null
     ) {
+        if (!isSafeMediaUri(item.uri)) {
+            _state.value = _state.value.copy(
+                isPlaying = false,
+                isBuffering = false,
+                errorMessage = "Security: Access to restricted or unsafe URI blocked."
+            )
+            return
+        }
+
         val player = getPlayer()
 
         val fullQueue = if (playlist.isNotEmpty()) playlist else listOf(item)

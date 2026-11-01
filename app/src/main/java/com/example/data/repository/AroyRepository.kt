@@ -56,7 +56,9 @@ class AroyRepository(
     }
 
     suspend fun createPlaylist(name: String, description: String = ""): Long {
-        return dao.insertPlaylist(PlaylistEntity(name = name, description = description))
+        val safeName = name.trim().take(80)
+        val safeDesc = description.trim().take(250)
+        return dao.insertPlaylist(PlaylistEntity(name = safeName, description = safeDesc))
     }
 
     suspend fun deletePlaylist(playlistId: Long) {
@@ -69,9 +71,9 @@ class AroyRepository(
             playlistId = playlistId,
             mediaUri = item.uri,
             mediaId = item.id,
-            title = item.title,
-            artist = item.artist,
-            durationMs = item.durationMs,
+            title = item.title.trim().take(120),
+            artist = item.artist.trim().take(120),
+            durationMs = item.durationMs.coerceAtLeast(0L),
             isVideo = item.isVideo,
             thumbnailUri = item.thumbnailUri
         )
@@ -83,12 +85,16 @@ class AroyRepository(
     }
 
     suspend fun saveStream(title: String, url: String, type: String, category: String = "Online"): Long {
+        val safeTitle = title.trim().take(100)
+        val safeUrl = url.trim().take(2048)
+        val safeType = type.trim().take(20)
+        val safeCat = category.trim().take(50)
         return dao.insertSavedStream(
             SavedStreamEntity(
-                title = title,
-                streamUrl = url,
-                streamType = type,
-                category = category
+                title = safeTitle,
+                streamUrl = safeUrl,
+                streamType = safeType,
+                category = safeCat
             )
         )
     }

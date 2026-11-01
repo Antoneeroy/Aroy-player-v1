@@ -138,7 +138,7 @@ fun CreatePlaylistDialog(
             Column {
                 OutlinedTextField(
                     value = name,
-                    onValueChange = { name = it },
+                    onValueChange = { name = it.take(80) },
                     label = { Text("Playlist Name") },
                     singleLine = true,
                     modifier = Modifier
@@ -148,7 +148,7 @@ fun CreatePlaylistDialog(
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedTextField(
                     value = desc,
-                    onValueChange = { desc = it },
+                    onValueChange = { desc = it.take(250) },
                     label = { Text("Description (Optional)") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
@@ -158,8 +158,10 @@ fun CreatePlaylistDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    if (name.isNotBlank()) {
-                        onConfirm(name.trim(), desc.trim())
+                    val sanitizedName = name.trim().take(80)
+                    val sanitizedDesc = desc.trim().take(250)
+                    if (sanitizedName.isNotBlank()) {
+                        onConfirm(sanitizedName, sanitizedDesc)
                     }
                 },
                 enabled = name.isNotBlank(),
@@ -270,6 +272,13 @@ fun StreamUrlDialog(
 
     val types = listOf("HLS", "MP4", "AUDIO")
 
+    val trimmedUrl = url.trim()
+    val isUrlValid = trimmedUrl.isNotBlank() &&
+            (trimmedUrl.startsWith("http://", ignoreCase = true) ||
+                    trimmedUrl.startsWith("https://", ignoreCase = true) ||
+                    trimmedUrl.startsWith("rtsp://", ignoreCase = true)) &&
+            !trimmedUrl.contains("..")
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Stream Online Media") },
@@ -284,10 +293,16 @@ fun StreamUrlDialog(
 
                 OutlinedTextField(
                     value = url,
-                    onValueChange = { url = it },
+                    onValueChange = { url = it.take(2048) },
                     label = { Text("Media Stream URL") },
                     placeholder = { Text("https://example.com/stream.m3u8") },
                     singleLine = true,
+                    isError = url.isNotBlank() && !isUrlValid,
+                    supportingText = {
+                        if (url.isNotBlank() && !isUrlValid) {
+                            Text("Only valid HTTP, HTTPS, or RTSP streaming links allowed", color = MaterialTheme.colorScheme.error)
+                        }
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("stream_url_input")
@@ -297,7 +312,7 @@ fun StreamUrlDialog(
 
                 OutlinedTextField(
                     value = title,
-                    onValueChange = { title = it },
+                    onValueChange = { title = it.take(100) },
                     label = { Text("Stream Title (Optional)") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
@@ -362,12 +377,12 @@ fun StreamUrlDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    if (url.isNotBlank()) {
-                        val streamTitle = if (title.isNotBlank()) title else "Stream ${System.currentTimeMillis() % 1000}"
-                        onPlayStream(url.trim(), streamTitle, selectedType)
+                    if (isUrlValid) {
+                        val streamTitle = if (title.isNotBlank()) title.trim().take(100) else "Stream ${System.currentTimeMillis() % 1000}"
+                        onPlayStream(trimmedUrl, streamTitle, selectedType)
                     }
                 },
-                enabled = url.isNotBlank(),
+                enabled = isUrlValid,
                 modifier = Modifier.testTag("start_stream_button")
             ) {
                 Icon(Icons.Default.PlayArrow, contentDescription = null)
