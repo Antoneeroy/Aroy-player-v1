@@ -13,6 +13,12 @@ class NotificationActionReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context?, intent: Intent?) {
         val manager = playerManager ?: return
         when (intent?.action) {
+            AroyNotificationHelper.ACTION_PLAY -> {
+                manager.resume()
+            }
+            AroyNotificationHelper.ACTION_PAUSE -> {
+                manager.pause()
+            }
             AroyNotificationHelper.ACTION_PLAY_PAUSE -> {
                 manager.playPauseToggle()
             }

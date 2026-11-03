@@ -44,6 +44,8 @@
             android:name=".player.NotificationActionReceiver"
             android:exported="false">
             <intent-filter>
+                <action android:name="com.example.ACTION_PLAY" />
+                <action android:name="com.example.ACTION_PAUSE" />
                 <action android:name="com.example.ACTION_PLAY_PAUSE" />
                 <action android:name="com.example.ACTION_NEXT" />
                 <action android:name="com.example.ACTION_PREV" />

@@ -28,6 +28,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.security.MessageDigest
+import java.security.SecureRandom
+
+sealed class VaultUnlockResult {
+    object Success : VaultUnlockResult()
+    data class WrongPin(val attemptsLeft: Int) : VaultUnlockResult()
+    data class LockedOut(val secondsLeft: Long) : VaultUnlockResult()
+}
 
 enum class MainTab(val title: String) {
     VIDEOS("Videos"),
@@ -83,7 +91,8 @@ data class UiState(
     val dolbyProfile: String = "Dynamic",
     val dolbyBassBoost: Boolean = true,
     val dolbySurroundVirtualizer: Boolean = true,
-    val favoriteUris: Set<String> = emptySet()
+    val favoriteUris: Set<String> = emptySet(),
+    val showPrivacyVault: Boolean = false
 )
 
 class AroyViewModel(application: Application) : AndroidViewModel(application) {
@@ -101,6 +110,16 @@ class AroyViewModel(application: Application) : AndroidViewModel(application) {
     private val _rawVideos = MutableStateFlow<List<MediaItemData>>(emptyList())
     private val _rawAudios = MutableStateFlow<List<MediaItemData>>(emptyList())
 
+    // Privacy Vault persistent storage
+    private val _privateUris = MutableStateFlow<Set<String>>(emptySet())
+    val privateUris: StateFlow<Set<String>> = _privateUris.asStateFlow()
+
+    private val _isPrivacyUnlocked = MutableStateFlow<Boolean>(false)
+    val isPrivacyUnlocked: StateFlow<Boolean> = _isPrivacyUnlocked.asStateFlow()
+
+    private val _isPrivacyPinSet = MutableStateFlow<Boolean>(false)
+    val isPrivacyPinSet: StateFlow<Boolean> = _isPrivacyPinSet.asStateFlow()
+
     val playbackState: StateFlow<PlaybackSnapshot> = playerManager.state
 
     val history: StateFlow<List<PlaybackHistoryEntity>> = repository.allHistory
@@ -112,26 +131,30 @@ class AroyViewModel(application: Application) : AndroidViewModel(application) {
     val savedStreams: StateFlow<List<SavedStreamEntity>> = repository.savedStreams
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // Filtered & Sorted Videos
+    // Filtered & Sorted Videos (Hides private vault videos from public views)
     val filteredVideos: StateFlow<List<MediaItemData>> = combine(
         _rawVideos,
-        _uiState
-    ) { videos, ui ->
+        _uiState,
+        _privateUris
+    ) { videos, ui, privates ->
+        val nonPrivate = videos.filter { it.uri !in privates }
         val query = ui.searchQuery.trim().lowercase()
-        val filtered = if (query.isEmpty()) videos else {
-            videos.filter { it.title.lowercase().contains(query) || it.folderName.lowercase().contains(query) }
+        val filtered = if (query.isEmpty()) nonPrivate else {
+            nonPrivate.filter { it.title.lowercase().contains(query) || it.folderName.lowercase().contains(query) }
         }
         applySort(filtered, ui.sortOrder)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // Filtered & Sorted Audios
+    // Filtered & Sorted Audios (Hides private vault music from public views)
     val filteredAudios: StateFlow<List<MediaItemData>> = combine(
         _rawAudios,
-        _uiState
-    ) { audios, ui ->
+        _uiState,
+        _privateUris
+    ) { audios, ui, privates ->
+        val nonPrivate = audios.filter { it.uri !in privates }
         val query = ui.searchQuery.trim().lowercase()
-        val filtered = if (query.isEmpty()) audios else {
-            audios.filter {
+        val filtered = if (query.isEmpty()) nonPrivate else {
+            nonPrivate.filter {
                 it.title.lowercase().contains(query) ||
                         it.artist.lowercase().contains(query) ||
                         it.album.lowercase().contains(query)
@@ -140,25 +163,48 @@ class AroyViewModel(application: Application) : AndroidViewModel(application) {
         applySort(filtered, ui.sortOrder)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    // Private Vault Media Collections
+    val privateVideos: StateFlow<List<MediaItemData>> = combine(
+        _rawVideos,
+        _privateUris
+    ) { videos, privates ->
+        videos.filter { it.uri in privates }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val privateAudios: StateFlow<List<MediaItemData>> = combine(
+        _rawAudios,
+        _privateUris
+    ) { audios, privates ->
+        audios.filter { it.uri in privates }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     // Video folders
-    val videoFolders: StateFlow<List<FolderItem>> = _rawVideos.combine(_uiState) { videos, _ ->
-        repository.extractFolders(videos, true)
+    val videoFolders: StateFlow<List<FolderItem>> = _rawVideos.combine(_privateUris) { videos, privates ->
+        val nonPrivate = videos.filter { it.uri !in privates }
+        repository.extractFolders(nonPrivate, true)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // Audio folders
-    val audioFolders: StateFlow<List<FolderItem>> = _rawAudios.combine(_uiState) { audios, _ ->
-        repository.extractFolders(audios, false)
+    val audioFolders: StateFlow<List<FolderItem>> = _rawAudios.combine(_privateUris) { audios, privates ->
+        val nonPrivate = audios.filter { it.uri !in privates }
+        repository.extractFolders(nonPrivate, false)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     init {
         NotificationActionReceiver.playerManager = playerManager
 
-        // Load saved settings
+        // Load saved settings & Privacy Vault data
         val savedFavorites = prefs.getStringSet("favorites", emptySet()) ?: emptySet()
+        val savedPrivates = prefs.getStringSet("privacy_vault_uris", emptySet()) ?: emptySet()
+        val hasHash = !prefs.getString("privacy_vault_hash", null).isNullOrEmpty()
+        val hasLegacyPin = !prefs.getString("privacy_vault_pin", null).isNullOrEmpty()
         val dolbyEnabled = prefs.getBoolean("dolby_atmos_enabled", true)
         val dolbyProfile = prefs.getString("dolby_profile", "Dynamic") ?: "Dynamic"
         val dolbyBass = prefs.getBoolean("dolby_bass_boost", true)
         val dolbyVirtualizer = prefs.getBoolean("dolby_surround", true)
+
+        _privateUris.value = savedPrivates
+        _isPrivacyPinSet.value = hasHash || hasLegacyPin
 
         _uiState.value = _uiState.value.copy(
             favoriteUris = savedFavorites,
@@ -474,6 +520,132 @@ class AroyViewModel(application: Application) : AndroidViewModel(application) {
         _rawAudios.value = currentAudios
 
         return convertedItem
+    }
+
+    // --- Privacy Vault Management ---
+    fun openPrivacyVault() {
+        _uiState.value = _uiState.value.copy(showPrivacyVault = true)
+    }
+
+    fun closePrivacyVault() {
+        _uiState.value = _uiState.value.copy(showPrivacyVault = false)
+        _isPrivacyUnlocked.value = false
+    }
+
+    private var failedAttempts = 0
+    private var lockoutUntilMs = 0L
+
+    fun getLockoutSecondsRemaining(): Long {
+        val now = System.currentTimeMillis()
+        return if (now < lockoutUntilMs) {
+            (lockoutUntilMs - now + 999L) / 1000L
+        } else {
+            0L
+        }
+    }
+
+    fun setPrivacyPin(newPin: String): Boolean {
+        if (newPin.length == 4 && newPin.all { it.isDigit() }) {
+            val random = SecureRandom()
+            val saltBytes = ByteArray(16)
+            random.nextBytes(saltBytes)
+            val salt = saltBytes.joinToString("") { "%02x".format(it) }
+            val hash = hashPin(newPin, salt)
+
+            prefs.edit()
+                .putString("privacy_vault_salt", salt)
+                .putString("privacy_vault_hash", hash)
+                .remove("privacy_vault_pin") // clean up legacy plaintext pin
+                .apply()
+
+            _isPrivacyPinSet.value = true
+            _isPrivacyUnlocked.value = true
+            failedAttempts = 0
+            lockoutUntilMs = 0L
+            return true
+        }
+        return false
+    }
+
+    fun unlockPrivacyVault(enteredPin: String): VaultUnlockResult {
+        val remaining = getLockoutSecondsRemaining()
+        if (remaining > 0) {
+            return VaultUnlockResult.LockedOut(remaining)
+        }
+
+        val salt = prefs.getString("privacy_vault_salt", null)
+        val hash = prefs.getString("privacy_vault_hash", null)
+        val legacyPin = prefs.getString("privacy_vault_pin", null)
+
+        val isCorrect = when {
+            hash != null && salt != null -> {
+                hashPin(enteredPin, salt) == hash
+            }
+            legacyPin != null -> {
+                if (legacyPin == enteredPin) {
+                    setPrivacyPin(enteredPin) // Auto-migrate to salted SHA-256
+                    true
+                } else false
+            }
+            else -> false
+        }
+
+        return if (isCorrect) {
+            failedAttempts = 0
+            lockoutUntilMs = 0L
+            _isPrivacyUnlocked.value = true
+            VaultUnlockResult.Success
+        } else {
+            failedAttempts++
+            if (failedAttempts >= 5) {
+                lockoutUntilMs = System.currentTimeMillis() + 30000L // 30-sec lockout
+                failedAttempts = 0
+                VaultUnlockResult.LockedOut(30L)
+            } else {
+                VaultUnlockResult.WrongPin(attemptsLeft = 5 - failedAttempts)
+            }
+        }
+    }
+
+    companion object {
+        fun hashPin(pin: String, salt: String): String {
+            val md = MessageDigest.getInstance("SHA-256")
+            val combined = "$salt:$pin"
+            val bytes = md.digest(combined.toByteArray(Charsets.UTF_8))
+            return bytes.joinToString("") { "%02x".format(it) }
+        }
+    }
+
+    fun lockPrivacyVault() {
+        _isPrivacyUnlocked.value = false
+    }
+
+    fun lockMediaToVault(item: MediaItemData) {
+        val current = _privateUris.value.toMutableSet()
+        current.add(item.uri)
+        _privateUris.value = current
+        prefs.edit().putStringSet("privacy_vault_uris", current).apply()
+    }
+
+    fun unlockMediaFromVault(item: MediaItemData) {
+        val current = _privateUris.value.toMutableSet()
+        current.remove(item.uri)
+        _privateUris.value = current
+        prefs.edit().putStringSet("privacy_vault_uris", current).apply()
+    }
+
+    fun isMediaPrivate(uri: String): Boolean {
+        return uri in _privateUris.value
+    }
+
+    fun getAllPublicVideos(): List<MediaItemData> {
+        val privates = _privateUris.value
+        return _rawVideos.value.filter { it.uri !in privates }
+    }
+
+    fun getAllPublicAudios(): List<MediaItemData> {
+        val privates = _privateUris.value
+        return _rawAudios.value.filter { it.uri !in privates }
     }
 
     private fun applySort(items: List<MediaItemData>, sortOrder: SortOrder): List<MediaItemData> {

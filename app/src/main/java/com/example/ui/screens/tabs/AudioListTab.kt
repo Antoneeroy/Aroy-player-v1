@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayArrow
@@ -46,6 +47,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.data.model.MediaItemData
+import com.example.ui.theme.LowLightGlossCyan
 
 @Composable
 fun AudioListTab(
@@ -56,6 +58,7 @@ fun AudioListTab(
     onRefreshScan: () -> Unit,
     isFavorite: (String) -> Boolean = { false },
     onToggleFavorite: (String) -> Unit = {},
+    onLockToVault: (MediaItemData) -> Unit = {},
     emptyTitle: String? = null,
     emptyMessage: String? = null
 ) {
@@ -116,7 +119,8 @@ fun AudioListTab(
                     isFavorite = isFavorite(audio.uri),
                     onClick = { onAudioClick(audio) },
                     onAddToPlaylist = { onAddToPlaylist(audio) },
-                    onToggleFavorite = { onToggleFavorite(audio.uri) }
+                    onToggleFavorite = { onToggleFavorite(audio.uri) },
+                    onLockToVault = { onLockToVault(audio) }
                 )
             }
         }
@@ -129,7 +133,8 @@ fun AudioItemRow(
     isFavorite: Boolean = false,
     onClick: () -> Unit,
     onAddToPlaylist: () -> Unit,
-    onToggleFavorite: () -> Unit = {}
+    onToggleFavorite: () -> Unit = {},
+    onLockToVault: () -> Unit = {}
 ) {
     var showMenu by remember { mutableStateOf(false) }
 
@@ -254,6 +259,14 @@ fun AudioItemRow(
                         onClick = {
                             showMenu = false
                             onAddToPlaylist()
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Hide in Privacy Vault") },
+                        leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = LowLightGlossCyan) },
+                        onClick = {
+                            showMenu = false
+                            onLockToVault()
                         }
                     )
                 }

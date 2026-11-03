@@ -22,10 +22,16 @@ class AroyNotificationHelper(private val context: Context) {
     var mediaSession: MediaSessionCompat? = null
         private set
 
+    private var lastNotifiedUri: String? = null
+    private var lastNotifiedPlaying: Boolean? = null
+    private var lastNotifiedTimeMs: Long = 0L
+
     companion object {
         const val CHANNEL_ID = "aroy_media_playback_channel"
         const val NOTIFICATION_ID = 1001
         const val ACTION_PLAY_PAUSE = "com.example.ACTION_PLAY_PAUSE"
+        const val ACTION_PLAY = "com.example.ACTION_PLAY"
+        const val ACTION_PAUSE = "com.example.ACTION_PAUSE"
         const val ACTION_NEXT = "com.example.ACTION_NEXT"
         const val ACTION_PREV = "com.example.ACTION_PREV"
         const val ACTION_STOP = "com.example.ACTION_STOP"
@@ -161,15 +167,27 @@ class AroyNotificationHelper(private val context: Context) {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val playPausePendingIntent = PendingIntent.getBroadcast(
+        val playPendingIntent = PendingIntent.getBroadcast(
             context,
             2,
             Intent(context, NotificationActionReceiver::class.java).apply {
                 setPackage(context.packageName)
-                action = ACTION_PLAY_PAUSE
+                action = ACTION_PLAY
             },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
+
+        val pausePendingIntent = PendingIntent.getBroadcast(
+            context,
+            5,
+            Intent(context, NotificationActionReceiver::class.java).apply {
+                setPackage(context.packageName)
+                action = ACTION_PAUSE
+            },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val playPausePendingIntent = if (snapshot.isPlaying) pausePendingIntent else playPendingIntent
 
         val nextPendingIntent = PendingIntent.getBroadcast(
             context,
@@ -223,15 +241,28 @@ class AroyNotificationHelper(private val context: Context) {
             .addAction(playPauseIcon, if (snapshot.isPlaying) "Pause" else "Play", playPausePendingIntent)
             .addAction(android.R.drawable.ic_media_next, "Next", nextPendingIntent)
 
-        try {
-            notificationManager.notify(NOTIFICATION_ID, notificationBuilder.build())
-        } catch (e: SecurityException) {
-            // Notification permission might not be granted yet
+        val now = System.currentTimeMillis()
+        val songChanged = lastNotifiedUri != media.uri
+        val stateChanged = lastNotifiedPlaying != snapshot.isPlaying
+        val periodicUpdate = (now - lastNotifiedTimeMs) > 10000L
+
+        if (songChanged || stateChanged || periodicUpdate) {
+            lastNotifiedUri = media.uri
+            lastNotifiedPlaying = snapshot.isPlaying
+            lastNotifiedTimeMs = now
+            try {
+                notificationManager.notify(NOTIFICATION_ID, notificationBuilder.build())
+            } catch (e: SecurityException) {
+                // Notification permission might not be granted yet
+            }
         }
     }
 
     fun dismissNotification() {
         try {
+            lastNotifiedUri = null
+            lastNotifiedPlaying = null
+            lastNotifiedTimeMs = 0L
             val stateBuilder = PlaybackStateCompat.Builder()
                 .setState(PlaybackStateCompat.STATE_STOPPED, 0L, 0f)
             mediaSession?.setPlaybackState(stateBuilder.build())

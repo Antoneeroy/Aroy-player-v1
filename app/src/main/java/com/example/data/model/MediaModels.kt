@@ -69,6 +69,14 @@ enum class PlayerRepeatMode(val title: String) {
     ONE("Repeat One")
 }
 
+enum class PlaybackMode(val title: String, val shortDesc: String) {
+    ORDER("Sequential Play", "Play in Order (≡↓)"),
+    SHUFFLE("Shuffle Play", "Random (🔀)"),
+    REPEAT_ALL("Repeat All", "Loop Playlist (🔁)"),
+    REPEAT_ONE("Repeat One", "Loop Song (🔂)"),
+    STOP_ON_FINISH("Stop on Finish", "Single Song (⏹️)")
+}
+
 enum class SortOrder(val title: String) {
     NAME_ASC("Name (A-Z)"),
     NAME_DESC("Name (Z-A)"),

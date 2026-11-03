@@ -24,6 +24,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PlaylistAdd
@@ -75,6 +76,7 @@ fun VideoListTab(
     onVideoClick: (MediaItemData) -> Unit,
     onAddToPlaylist: (MediaItemData) -> Unit,
     onConvertMp3: (MediaItemData) -> Unit = {},
+    onLockToVault: (MediaItemData) -> Unit = {},
     onRefreshScan: () -> Unit
 ) {
     if (videos.isEmpty() && !isScanning) {
@@ -166,7 +168,8 @@ fun VideoListTab(
                         layoutColumns = layoutColumns,
                         onClick = { onVideoClick(video) },
                         onAddToPlaylist = { onAddToPlaylist(video) },
-                        onConvertMp3 = { onConvertMp3(video) }
+                        onConvertMp3 = { onConvertMp3(video) },
+                        onLockToVault = { onLockToVault(video) }
                     )
                 }
             }
@@ -184,7 +187,8 @@ fun RectangularCircularVideoCard(
     layoutColumns: Int,
     onClick: () -> Unit,
     onAddToPlaylist: () -> Unit,
-    onConvertMp3: () -> Unit = {}
+    onConvertMp3: () -> Unit = {},
+    onLockToVault: () -> Unit = {}
 ) {
     var showMenu by remember { mutableStateOf(false) }
 
@@ -428,6 +432,14 @@ fun RectangularCircularVideoCard(
                             onClick = {
                                 showMenu = false
                                 onAddToPlaylist()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Hide in Privacy Vault") },
+                            leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = LowLightGlossCyan) },
+                            onClick = {
+                                showMenu = false
+                                onLockToVault()
                             }
                         )
                     }

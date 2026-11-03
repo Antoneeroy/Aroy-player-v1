@@ -94,6 +94,7 @@ import com.example.ui.components.AudioPlayerSheet
 import com.example.ui.components.CreatePlaylistDialog
 import com.example.ui.components.MiniPlayerBar
 import com.example.ui.components.Mp3ConverterDialog
+import com.example.ui.components.PrivacyVaultDialog
 import com.example.ui.components.SleepTimerDialog
 import com.example.ui.components.SortOrderDialog
 import com.example.ui.components.StreamUrlDialog
@@ -126,6 +127,10 @@ fun HomeScreen(viewModel: AroyViewModel) {
     val history by viewModel.history.collectAsStateWithLifecycle()
     val playlists by viewModel.playlists.collectAsStateWithLifecycle()
     val savedStreams by viewModel.savedStreams.collectAsStateWithLifecycle()
+    val privateVideos by viewModel.privateVideos.collectAsStateWithLifecycle()
+    val privateAudios by viewModel.privateAudios.collectAsStateWithLifecycle()
+    val isPrivacyUnlocked by viewModel.isPrivacyUnlocked.collectAsStateWithLifecycle()
+    val isPrivacyPinSet by viewModel.isPrivacyPinSet.collectAsStateWithLifecycle()
 
     val isDark = uiState.themeMode != AppThemeMode.LIGHT
     val primaryTextColor = if (isDark) Color.White else WordColorBlack
@@ -272,6 +277,31 @@ fun HomeScreen(viewModel: AroyViewModel) {
                 viewModel.playMediaItem(convertedAudio, filteredAudios)
             },
             onDismiss = { viewModel.closeMp3Converter() }
+        )
+    }
+
+    // Privacy Vault Screen / Dialog
+    if (uiState.showPrivacyVault) {
+        PrivacyVaultDialog(
+            isPinSet = isPrivacyPinSet,
+            isUnlocked = isPrivacyUnlocked,
+            privateVideos = privateVideos,
+            privateAudios = privateAudios,
+            publicVideos = viewModel.getAllPublicVideos(),
+            publicAudios = viewModel.getAllPublicAudios(),
+            onSetPin = { viewModel.setPrivacyPin(it) },
+            onUnlock = { viewModel.unlockPrivacyVault(it) },
+            onLock = { viewModel.lockPrivacyVault() },
+            onLockMedia = { viewModel.lockMediaToVault(it) },
+            onUnlockMedia = { viewModel.unlockMediaFromVault(it) },
+            onPlayMedia = { item ->
+                if (item.isVideo) {
+                    viewModel.playMediaItem(item, privateVideos)
+                } else {
+                    viewModel.playMediaItem(item, privateAudios)
+                }
+            },
+            onDismiss = { viewModel.closePrivacyVault() }
         )
     }
 
@@ -744,6 +774,7 @@ fun HomeScreen(viewModel: AroyViewModel) {
                                     onVideoClick = { video -> viewModel.playMediaItem(video, filteredVideos) },
                                     onAddToPlaylist = { video -> viewModel.setShowAddToPlaylist(video) },
                                     onConvertMp3 = { video -> viewModel.openMp3Converter(video) },
+                                    onLockToVault = { video -> viewModel.lockMediaToVault(video) },
                                     onRefreshScan = { viewModel.scanStorage() }
                                 )
                             }
@@ -787,7 +818,8 @@ fun HomeScreen(viewModel: AroyViewModel) {
                                     onAddToPlaylist = { audio -> viewModel.setShowAddToPlaylist(audio) },
                                     onRefreshScan = { viewModel.scanStorage() },
                                     isFavorite = { uri -> viewModel.isFavorite(uri) },
-                                    onToggleFavorite = { uri -> viewModel.toggleFavorite(uri) }
+                                    onToggleFavorite = { uri -> viewModel.toggleFavorite(uri) },
+                                    onLockToVault = { audio -> viewModel.lockMediaToVault(audio) }
                                 )
                             }
                             com.example.ui.MusicSubTab.PLAYLIST -> {
@@ -810,6 +842,7 @@ fun HomeScreen(viewModel: AroyViewModel) {
                                     onRefreshScan = { viewModel.scanStorage() },
                                     isFavorite = { uri -> viewModel.isFavorite(uri) },
                                     onToggleFavorite = { uri -> viewModel.toggleFavorite(uri) },
+                                    onLockToVault = { audio -> viewModel.lockMediaToVault(audio) },
                                     emptyTitle = "No Favourites Yet",
                                     emptyMessage = "Tap the heart icon on any song in the Music tab to add it to your favourites."
                                 )
@@ -840,6 +873,7 @@ fun HomeScreen(viewModel: AroyViewModel) {
                             },
                             onOpenThemePicker = { viewModel.setSettingsOpen(true) },
                             onOpenMp3Converter = { viewModel.openMp3Converter(null) },
+                            onOpenPrivacyVault = { viewModel.openPrivacyVault() },
                             onRescanStorage = { viewModel.scanStorage() }
                         )
                     }
@@ -850,6 +884,7 @@ fun HomeScreen(viewModel: AroyViewModel) {
 
     // Expanded Audio Player Sheet
     if (uiState.isAudioSheetExpanded && playbackSnapshot.currentMedia != null) {
+        val currentUri = playbackSnapshot.currentMedia?.uri ?: ""
         AudioPlayerSheet(
             snapshot = playbackSnapshot,
             onClose = { viewModel.setAudioSheetExpanded(false) },
@@ -863,7 +898,10 @@ fun HomeScreen(viewModel: AroyViewModel) {
             onSetSpeed = { viewModel.playerManager.setPlaybackSpeed(it) },
             onToggleMute = { viewModel.playerManager.toggleMute() },
             onOpenSleepTimer = { viewModel.setShowSleepTimerDialog(true) },
-            onAddToPlaylist = { viewModel.setShowAddToPlaylist(it) }
+            onAddToPlaylist = { viewModel.setShowAddToPlaylist(it) },
+            isFavorite = viewModel.isFavorite(currentUri),
+            onToggleFavorite = { viewModel.toggleFavorite(currentUri) },
+            onSelectTrack = { track -> viewModel.playMediaItem(track, playbackSnapshot.queue) }
         )
     }
 }

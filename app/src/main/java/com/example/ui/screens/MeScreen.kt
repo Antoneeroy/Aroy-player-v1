@@ -94,9 +94,9 @@ fun MeScreen(
     onOpenHistory: () -> Unit,
     onOpenThemePicker: () -> Unit,
     onOpenMp3Converter: () -> Unit = {},
+    onOpenPrivacyVault: () -> Unit = {},
     onRescanStorage: () -> Unit
 ) {
-    var showPrivacyDialog by remember { mutableStateOf(false) }
     var showFileTransferDialog by remember { mutableStateOf(false) }
     var showRecycleBinDialog by remember { mutableStateOf(false) }
     var showFeedbackDialog by remember { mutableStateOf(false) }
@@ -263,7 +263,7 @@ fun MeScreen(
                                             when (tool.id) {
                                                 "downloads" -> onRescanStorage()
                                                 "mp3_converter" -> onOpenMp3Converter()
-                                                "privacy" -> showPrivacyDialog = true
+                                                "privacy" -> onOpenPrivacyVault()
                                                 "file_transfer" -> showFileTransferDialog = true
                                                 "media_manage" -> onRescanStorage()
                                                 "theme" -> onOpenThemePicker()
@@ -466,37 +466,6 @@ fun MeScreen(
                 }
             }
         }
-    }
-
-    // Privacy Dialog
-    if (showPrivacyDialog) {
-        var pin by remember { mutableStateOf("") }
-        AlertDialog(
-            onDismissRequest = { showPrivacyDialog = false },
-            title = { Text("Privacy Vault") },
-            text = {
-                Column {
-                    Text("Secure your personal videos and private audios with a 4-digit PIN.")
-                    Spacer(modifier = Modifier.height(12.dp))
-                    OutlinedTextField(
-                        value = pin,
-                        onValueChange = { if (it.length <= 4) pin = it },
-                        label = { Text("Enter 4-digit PIN") },
-                        singleLine = true
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showPrivacyDialog = false }) {
-                    Text("Unlock")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showPrivacyDialog = false }) {
-                    Text("Cancel")
-                }
-            }
-        )
     }
 
     // File Transfer Dialog

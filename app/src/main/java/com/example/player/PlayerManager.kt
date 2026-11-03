@@ -3,6 +3,7 @@ package com.example.player
 import android.content.Context
 import android.net.Uri
 import androidx.annotation.OptIn
+import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
@@ -12,6 +13,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import com.example.data.model.MediaItemData
 import com.example.data.model.PlayerRepeatMode
+import com.example.data.model.PlaybackMode
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -36,6 +38,7 @@ data class PlaybackSnapshot(
     val isBuffering: Boolean = false,
     val playbackSpeed: Float = 1.0f,
     val repeatMode: PlayerRepeatMode = PlayerRepeatMode.OFF,
+    val playbackMode: PlaybackMode = PlaybackMode.ORDER, // Default to sequential play
     val isMuted: Boolean = false,
     val queue: List<MediaItemData> = emptyList(),
     val queueIndex: Int = -1,
@@ -75,8 +78,14 @@ class PlayerManager(private val context: Context) {
         val mediaSourceFactory = DefaultMediaSourceFactory(context)
             .setDataSourceFactory(defaultDataSourceFactory)
 
+        val audioAttributes = AudioAttributes.Builder()
+            .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+            .setUsage(C.USAGE_MEDIA)
+            .build()
+
         val player = ExoPlayer.Builder(context)
             .setMediaSourceFactory(mediaSourceFactory)
+            .setAudioAttributes(audioAttributes, true)
             .setSeekBackIncrementMs(10000)
             .setSeekForwardIncrementMs(10000)
             .build()
@@ -239,21 +248,38 @@ class PlayerManager(private val context: Context) {
         playMedia(current, _state.value.queue, pos)
     }
 
+    private var lastToggleTimeMs = 0L
+
     fun playPauseToggle() {
+        val now = System.currentTimeMillis()
+        if (now - lastToggleTimeMs < 250L) {
+            return
+        }
+        lastToggleTimeMs = now
+
         val player = exoPlayer ?: return
-        if (player.isPlaying) {
-            player.pause()
+        val isCurrentlyPlaying = player.playWhenReady && (_state.value.isPlaying || player.isPlaying)
+        if (isCurrentlyPlaying) {
+            pause()
         } else {
-            player.play()
+            resume()
         }
     }
 
     fun pause() {
-        exoPlayer?.pause()
+        val player = exoPlayer ?: return
+        player.playWhenReady = false
+        player.pause()
+        _state.value = _state.value.copy(isPlaying = false)
+        stopProgressTracker()
     }
 
     fun resume() {
-        exoPlayer?.play()
+        val player = exoPlayer ?: return
+        player.playWhenReady = true
+        player.play()
+        _state.value = _state.value.copy(isPlaying = true)
+        startProgressTracker()
     }
 
     fun seekTo(positionMs: Long) {
@@ -281,30 +307,60 @@ class PlayerManager(private val context: Context) {
         _state.value = _state.value.copy(playbackSpeed = speed)
     }
 
-    fun toggleRepeatMode() {
-        val nextMode = when (_state.value.repeatMode) {
-            PlayerRepeatMode.OFF -> PlayerRepeatMode.ALL
-            PlayerRepeatMode.ALL -> PlayerRepeatMode.ONE
-            PlayerRepeatMode.ONE -> PlayerRepeatMode.OFF
+    fun cyclePlaybackMode() {
+        val next = when (_state.value.playbackMode) {
+            PlaybackMode.ORDER -> PlaybackMode.SHUFFLE
+            PlaybackMode.SHUFFLE -> PlaybackMode.REPEAT_ALL
+            PlaybackMode.REPEAT_ALL -> PlaybackMode.REPEAT_ONE
+            PlaybackMode.REPEAT_ONE -> PlaybackMode.STOP_ON_FINISH
+            PlaybackMode.STOP_ON_FINISH -> PlaybackMode.ORDER
         }
-        setRepeatMode(nextMode)
+        setPlaybackMode(next)
+    }
+
+    fun setPlaybackMode(mode: PlaybackMode) {
+        val player = exoPlayer
+        if (player != null) {
+            when (mode) {
+                PlaybackMode.REPEAT_ONE -> player.repeatMode = Player.REPEAT_MODE_ONE
+                PlaybackMode.REPEAT_ALL -> player.repeatMode = Player.REPEAT_MODE_ALL
+                else -> player.repeatMode = Player.REPEAT_MODE_OFF
+            }
+        }
+        val legacyRepeat = when (mode) {
+            PlaybackMode.REPEAT_ONE -> PlayerRepeatMode.ONE
+            PlaybackMode.REPEAT_ALL -> PlayerRepeatMode.ALL
+            else -> PlayerRepeatMode.OFF
+        }
+        _state.value = _state.value.copy(
+            playbackMode = mode,
+            repeatMode = legacyRepeat
+        )
+    }
+
+    fun toggleRepeatMode() {
+        cyclePlaybackMode()
     }
 
     fun setRepeatMode(mode: PlayerRepeatMode) {
-        val player = exoPlayer ?: return
-        when (mode) {
-            PlayerRepeatMode.OFF -> player.repeatMode = Player.REPEAT_MODE_OFF
-            PlayerRepeatMode.ALL -> player.repeatMode = Player.REPEAT_MODE_ALL
-            PlayerRepeatMode.ONE -> player.repeatMode = Player.REPEAT_MODE_ONE
+        val pMode = when (mode) {
+            PlayerRepeatMode.OFF -> PlaybackMode.ORDER
+            PlayerRepeatMode.ALL -> PlaybackMode.REPEAT_ALL
+            PlayerRepeatMode.ONE -> PlaybackMode.REPEAT_ONE
         }
-        _state.value = _state.value.copy(repeatMode = mode)
+        setPlaybackMode(pMode)
     }
 
     fun playNext() {
         val q = _state.value.queue
         val currIdx = _state.value.queueIndex
         if (q.isNotEmpty()) {
-            val nextIdx = (currIdx + 1) % q.size
+            val nextIdx = if (_state.value.playbackMode == PlaybackMode.SHUFFLE && q.size > 1) {
+                val available = q.indices.filter { it != currIdx }
+                if (available.isNotEmpty()) available.random() else (currIdx + 1) % q.size
+            } else {
+                (currIdx + 1) % q.size
+            }
             playMedia(q[nextIdx], q)
         }
     }
@@ -352,13 +408,51 @@ class PlayerManager(private val context: Context) {
     }
 
     private fun onTrackEnded() {
-        if (_state.value.repeatMode == PlayerRepeatMode.ONE) {
-            seekTo(0)
-            resume()
-        } else if (_state.value.queue.size > 1 && _state.value.repeatMode == PlayerRepeatMode.ALL) {
-            playNext()
-        } else {
-            _state.value = _state.value.copy(isPlaying = false)
+        val mode = _state.value.playbackMode
+        val q = _state.value.queue
+        val currIdx = _state.value.queueIndex
+
+        when (mode) {
+            PlaybackMode.REPEAT_ONE -> {
+                seekTo(0)
+                resume()
+            }
+            PlaybackMode.SHUFFLE -> {
+                if (q.isNotEmpty()) {
+                    val nextIdx = if (q.size > 1) {
+                        val available = q.indices.filter { it != currIdx }
+                        if (available.isNotEmpty()) available.random() else 0
+                    } else 0
+                    playMedia(q[nextIdx], q)
+                } else {
+                    _state.value = _state.value.copy(isPlaying = false)
+                }
+            }
+            PlaybackMode.ORDER -> {
+                // Sequential play (≡↓): auto play next in list, stop if end of queue reached
+                if (q.isNotEmpty()) {
+                    if (currIdx + 1 < q.size) {
+                        playMedia(q[currIdx + 1], q)
+                    } else {
+                        // End of playlist
+                        _state.value = _state.value.copy(isPlaying = false)
+                    }
+                } else {
+                    _state.value = _state.value.copy(isPlaying = false)
+                }
+            }
+            PlaybackMode.REPEAT_ALL -> {
+                if (q.isNotEmpty()) {
+                    val nextIdx = (currIdx + 1) % q.size
+                    playMedia(q[nextIdx], q)
+                } else {
+                    _state.value = _state.value.copy(isPlaying = false)
+                }
+            }
+            PlaybackMode.STOP_ON_FINISH -> {
+                // User explicitly selected single track play: music complete hone ke baad band ho jata hai
+                _state.value = _state.value.copy(isPlaying = false)
+            }
         }
     }
 
