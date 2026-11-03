@@ -24,12 +24,15 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ColorLens
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SdStorage
 import androidx.compose.material.icons.filled.SurroundSound
 import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -38,6 +41,7 @@ import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -75,6 +79,8 @@ fun SettingsScreen(
     onSelectDolbyProfile: (String) -> Unit = {},
     onToggleDolbyBassBoost: (Boolean) -> Unit = {},
     onToggleDolbySurroundVirtualizer: (Boolean) -> Unit = {},
+    isPrivacyPinSet: Boolean = false,
+    onResetPrivacyPin: () -> Unit = {},
     onBack: () -> Unit
 ) {
     BackHandler {
@@ -84,6 +90,59 @@ fun SettingsScreen(
     var autoResume by remember { mutableStateOf(true) }
     var backgroundPlay by remember { mutableStateOf(true) }
     var hardwareAcceleration by remember { mutableStateOf(true) }
+    var showResetConfirmDialog by remember { mutableStateOf(false) }
+    var showResetSuccessDialog by remember { mutableStateOf(false) }
+
+    if (showResetConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showResetConfirmDialog = false },
+            title = {
+                Text("Reset Privacy Vault PIN?", fontWeight = FontWeight.Bold)
+            },
+            text = {
+                Text(
+                    "Are you sure you want to reset your 4-digit Privacy Vault PIN? All your hidden videos and songs will remain safely preserved in storage. You will be able to set a new PIN whenever you open the Privacy Vault."
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showResetConfirmDialog = false
+                        onResetPrivacyPin()
+                        showResetSuccessDialog = true
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444))
+                ) {
+                    Text("Reset PIN", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { showResetConfirmDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    if (showResetSuccessDialog) {
+        AlertDialog(
+            onDismissRequest = { showResetSuccessDialog = false },
+            title = {
+                Text("PIN Reset Successful", fontWeight = FontWeight.Bold)
+            },
+            text = {
+                Text("Your Privacy Vault PIN has been successfully cleared. When you next open the Privacy Vault, you will be prompted to create a new 4-digit PIN.")
+            },
+            confirmButton = {
+                Button(
+                    onClick = { showResetSuccessDialog = false },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF38BDF8))
+                ) {
+                    Text("OK", fontWeight = FontWeight.Bold)
+                }
+            }
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -459,6 +518,85 @@ fun SettingsScreen(
                         Switch(
                             checked = hardwareAcceleration,
                             onCheckedChange = { hardwareAcceleration = it }
+                        )
+                    }
+                }
+            }
+
+            // Privacy Vault Security Section ("password reseat ka boton setting me add karo")
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("privacy_vault_settings_card"),
+                shape = RoundedCornerShape(18.dp),
+                border = BorderStroke(
+                    1.dp,
+                    Brush.linearGradient(listOf(Color(0xFF8B5CF6), Color(0xFF38BDF8)))
+                ),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                )
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(Color(0x228B5CF6)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Lock,
+                                contentDescription = null,
+                                tint = Color(0xFF38BDF8),
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                text = "Privacy Vault Password / PIN",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = if (isPrivacyPinSet) "Protected with 4-digit PIN" else "No PIN configured",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (isPrivacyPinSet) Color(0xFF10B981) else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = "Reset or clear your 4-digit vault PIN. Private videos and songs remain safely preserved in storage.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Button(
+                        onClick = { showResetConfirmDialog = true },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("reset_privacy_pin_button"),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF8B5CF6),
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = null
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = if (isPrivacyPinSet) "Reset Vault Password / PIN" else "Setup / Reset PIN",
+                            fontWeight = FontWeight.Bold
                         )
                     }
                 }

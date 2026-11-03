@@ -620,6 +620,19 @@ class AroyViewModel(application: Application) : AndroidViewModel(application) {
         _isPrivacyUnlocked.value = false
     }
 
+    fun resetPrivacyPin(): Boolean {
+        prefs.edit()
+            .remove("privacy_vault_salt")
+            .remove("privacy_vault_hash")
+            .remove("privacy_vault_pin")
+            .apply()
+        _isPrivacyPinSet.value = false
+        _isPrivacyUnlocked.value = false
+        failedAttempts = 0
+        lockoutUntilMs = 0L
+        return true
+    }
+
     fun lockMediaToVault(item: MediaItemData) {
         val current = _privateUris.value.toMutableSet()
         current.add(item.uri)

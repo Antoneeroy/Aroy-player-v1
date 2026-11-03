@@ -211,6 +211,8 @@ fun HomeScreen(viewModel: AroyViewModel) {
             onSelectDolbyProfile = { viewModel.setDolbyProfile(it) },
             onToggleDolbyBassBoost = { viewModel.setDolbyBassBoost(it) },
             onToggleDolbySurroundVirtualizer = { viewModel.setDolbySurroundVirtualizer(it) },
+            isPrivacyPinSet = isPrivacyPinSet,
+            onResetPrivacyPin = { viewModel.resetPrivacyPin() },
             onBack = { viewModel.setSettingsOpen(false) }
         )
         return
@@ -291,6 +293,7 @@ fun HomeScreen(viewModel: AroyViewModel) {
             publicAudios = viewModel.getAllPublicAudios(),
             onSetPin = { viewModel.setPrivacyPin(it) },
             onUnlock = { viewModel.unlockPrivacyVault(it) },
+            onResetPin = { viewModel.resetPrivacyPin() },
             onLock = { viewModel.lockPrivacyVault() },
             onLockMedia = { viewModel.lockMediaToVault(it) },
             onUnlockMedia = { viewModel.unlockMediaFromVault(it) },

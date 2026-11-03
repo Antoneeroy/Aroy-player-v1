@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -99,6 +101,7 @@ fun PrivacyVaultDialog(
     publicAudios: List<MediaItemData>,
     onSetPin: (String) -> Boolean,
     onUnlock: (String) -> VaultUnlockResult,
+    onResetPin: (() -> Unit)? = null,
     onLock: () -> Unit,
     onLockMedia: (MediaItemData) -> Unit,
     onUnlockMedia: (MediaItemData) -> Unit,
@@ -115,51 +118,66 @@ fun PrivacyVaultDialog(
         },
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
-        Surface(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp)
-                .testTag("privacy_vault_modal"),
-            shape = RoundedCornerShape(24.dp),
-            color = Color(0xF20F172A),
-            border = BorderStroke(
-                1.5.dp,
-                Brush.linearGradient(
-                    listOf(
-                        Color(0x8838BDF8),
-                        Color(0x88A855F7),
-                        Color(0x88EC4899),
-                        Color(0x8838BDF8)
-                    )
-                )
-            ),
-            shadowElevation = 24.dp
+                .padding(if (!isUnlocked) 24.dp else 16.dp),
+            contentAlignment = Alignment.Center
         ) {
-            if (!isUnlocked) {
-                // PIN ENTRY / PIN SETUP SCREEN
-                VaultPinScreen(
-                    isPinSet = isPinSet,
-                    onSetPin = onSetPin,
-                    onUnlock = onUnlock,
-                    onDismiss = {
-                        onLock()
-                        onDismiss()
-                    }
-                )
-            } else {
-                // VAULT UNLOCKED: MAIN VAULT CONTENT
-                VaultContentScreen(
-                    privateVideos = privateVideos,
-                    privateAudios = privateAudios,
-                    onOpenAddPicker = { showAddPicker = true },
-                    onChangePinClick = { showChangePinDialog = true },
-                    onLockExit = {
-                        onLock()
-                        onDismiss()
-                    },
-                    onPlayMedia = onPlayMedia,
-                    onUnlockMedia = onUnlockMedia
-                )
+            Surface(
+                modifier = if (!isUnlocked) {
+                    Modifier
+                        .fillMaxWidth(0.92f)
+                        .widthIn(max = 330.dp)
+                        .wrapContentHeight()
+                        .testTag("privacy_vault_modal")
+                } else {
+                    Modifier
+                        .fillMaxSize()
+                        .testTag("privacy_vault_modal")
+                },
+                shape = RoundedCornerShape(24.dp),
+                color = Color(0xF20F172A),
+                border = BorderStroke(
+                    1.5.dp,
+                    Brush.linearGradient(
+                        listOf(
+                            Color(0x8838BDF8),
+                            Color(0x88A855F7),
+                            Color(0x88EC4899),
+                            Color(0x8838BDF8)
+                        )
+                    )
+                ),
+                shadowElevation = 24.dp
+            ) {
+                if (!isUnlocked) {
+                    // PIN ENTRY / PIN SETUP SCREEN (Compact ~2 inch card)
+                    VaultPinScreen(
+                        isPinSet = isPinSet,
+                        onSetPin = onSetPin,
+                        onUnlock = onUnlock,
+                        onResetPin = onResetPin,
+                        onDismiss = {
+                            onLock()
+                            onDismiss()
+                        }
+                    )
+                } else {
+                    // VAULT UNLOCKED: MAIN VAULT CONTENT
+                    VaultContentScreen(
+                        privateVideos = privateVideos,
+                        privateAudios = privateAudios,
+                        onOpenAddPicker = { showAddPicker = true },
+                        onChangePinClick = { showChangePinDialog = true },
+                        onLockExit = {
+                            onLock()
+                            onDismiss()
+                        },
+                        onPlayMedia = onPlayMedia,
+                        onUnlockMedia = onUnlockMedia
+                    )
+                }
             }
         }
     }
@@ -194,23 +212,56 @@ private fun VaultPinScreen(
     isPinSet: Boolean,
     onSetPin: (String) -> Boolean,
     onUnlock: (String) -> VaultUnlockResult,
+    onResetPin: (() -> Unit)? = null,
     onDismiss: () -> Unit
 ) {
     var pin by remember { mutableStateOf("") }
     var confirmPin by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var showResetConfirmDialog by remember { mutableStateOf(false) }
+
+    if (showResetConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showResetConfirmDialog = false },
+            title = {
+                Text("Reset Privacy Vault PIN?", fontWeight = FontWeight.Bold)
+            },
+            text = {
+                Text(
+                    "Are you sure you want to reset your 4-digit Vault PIN? All your private videos and songs will remain safely stored. You will be able to create a new PIN immediately."
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showResetConfirmDialog = false
+                        onResetPin?.invoke()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444))
+                ) {
+                    Text("Reset PIN", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { showResetConfirmDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 
     Column(
         modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
+            .fillMaxWidth()
+            .wrapContentHeight()
+            .padding(horizontal = 20.dp, vertical = 22.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        // Vault Glow Icon
+        // Compact Vault Glow Icon (~50dp)
         Box(
             modifier = Modifier
-                .size(80.dp)
+                .size(52.dp)
                 .clip(CircleShape)
                 .background(
                     Brush.radialGradient(
@@ -228,34 +279,34 @@ private fun VaultPinScreen(
                 imageVector = if (isPinSet) Icons.Default.Lock else Icons.Default.Shield,
                 contentDescription = null,
                 tint = LowLightGlossCyan,
-                modifier = Modifier.size(42.dp)
+                modifier = Modifier.size(28.dp)
             )
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
         Text(
             text = if (isPinSet) "Privacy Vault" else "Setup Privacy Vault",
-            style = MaterialTheme.typography.headlineSmall,
+            style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
             color = Color.White
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(4.dp))
 
         Text(
             text = if (isPinSet) {
-                "Enter your 4-digit PIN to access private videos & songs."
+                "Enter your 4-digit PIN to access private media"
             } else {
-                "Create a 4-digit security PIN to protect personal media."
+                "Create a 4-digit security PIN to protect personal media"
             },
-            style = MaterialTheme.typography.bodyMedium,
+            style = MaterialTheme.typography.bodySmall,
             color = Color.White.copy(alpha = 0.7f),
             textAlign = TextAlign.Center,
-            modifier = Modifier.padding(horizontal = 20.dp)
+            modifier = Modifier.padding(horizontal = 10.dp)
         )
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
         // PIN Input
         OutlinedTextField(
@@ -271,7 +322,7 @@ private fun VaultPinScreen(
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
             singleLine = true,
             modifier = Modifier
-                .fillMaxWidth(0.8f)
+                .fillMaxWidth()
                 .testTag("privacy_pin_input"),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedTextColor = Color.White,
@@ -283,7 +334,7 @@ private fun VaultPinScreen(
         )
 
         if (!isPinSet) {
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(10.dp))
             OutlinedTextField(
                 value = confirmPin,
                 onValueChange = {
@@ -297,7 +348,7 @@ private fun VaultPinScreen(
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                 singleLine = true,
                 modifier = Modifier
-                    .fillMaxWidth(0.8f)
+                    .fillMaxWidth()
                     .testTag("privacy_confirm_pin_input"),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedTextColor = Color.White,
@@ -310,7 +361,7 @@ private fun VaultPinScreen(
         }
 
         if (errorMessage != null) {
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "⚠️ $errorMessage",
                 color = Color(0xFFEF4444),
@@ -319,10 +370,10 @@ private fun VaultPinScreen(
             )
         }
 
-        Spacer(modifier = Modifier.height(28.dp))
+        Spacer(modifier = Modifier.height(18.dp))
 
         Row(
-            modifier = Modifier.fillMaxWidth(0.85f),
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             OutlinedButton(
@@ -377,6 +428,21 @@ private fun VaultPinScreen(
                 Text(
                     text = if (isPinSet) "Unlock" else "Create",
                     fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
+        // Reset PIN link if user forgot or wants to reset
+        if (isPinSet && onResetPin != null) {
+            Spacer(modifier = Modifier.height(6.dp))
+            TextButton(
+                onClick = { showResetConfirmDialog = true },
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+            ) {
+                Text(
+                    text = "Forgot / Reset PIN?",
+                    color = Color(0xFF38BDF8),
+                    style = MaterialTheme.typography.labelMedium
                 )
             }
         }
