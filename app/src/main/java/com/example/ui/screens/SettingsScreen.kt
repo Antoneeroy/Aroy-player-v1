@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SdStorage
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.SurroundSound
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.AlertDialog
@@ -81,6 +82,7 @@ fun SettingsScreen(
     onToggleDolbySurroundVirtualizer: (Boolean) -> Unit = {},
     isPrivacyPinSet: Boolean = false,
     onResetPrivacyPin: () -> Unit = {},
+    onOpenSecurityGuard: () -> Unit = {},
     onBack: () -> Unit
 ) {
     BackHandler {
@@ -596,6 +598,26 @@ fun SettingsScreen(
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = if (isPrivacyPinSet) "Reset Vault Password / PIN" else "Setup / Reset PIN",
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+                    OutlinedButton(
+                        onClick = onOpenSecurityGuard,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("open_security_guard_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Security,
+                            contentDescription = null,
+                            tint = Color(0xFF10B981)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Open Security Guard Shield (6 Layers Active)",
+                            color = Color(0xFF10B981),
                             fontWeight = FontWeight.Bold
                         )
                     }

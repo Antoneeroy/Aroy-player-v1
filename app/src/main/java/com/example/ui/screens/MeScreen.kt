@@ -36,6 +36,7 @@ import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.AlertDialog
@@ -95,6 +96,7 @@ fun MeScreen(
     onOpenThemePicker: () -> Unit,
     onOpenMp3Converter: () -> Unit = {},
     onOpenPrivacyVault: () -> Unit = {},
+    onOpenSecurityGuard: () -> Unit = {},
     onRescanStorage: () -> Unit
 ) {
     var showFileTransferDialog by remember { mutableStateOf(false) }
@@ -132,6 +134,7 @@ fun MeScreen(
         MeToolItem("downloads", "Downloads", Icons.Default.Download),
         MeToolItem("mp3_converter", "MP3 Converter", Icons.Default.Headphones),
         MeToolItem("privacy", "Privacy", Icons.Default.Lock),
+        MeToolItem("security_guard", "Security Guard", Icons.Default.Security, badge = "SAFE"),
         MeToolItem("file_transfer", "File Transfer", Icons.Default.SwapHoriz, badge = "NEW"),
         MeToolItem("media_manage", "Media Manage", Icons.Default.Folder),
         MeToolItem("theme", "Theme", Icons.Default.ColorLens),
@@ -264,6 +267,7 @@ fun MeScreen(
                                                 "downloads" -> onRescanStorage()
                                                 "mp3_converter" -> onOpenMp3Converter()
                                                 "privacy" -> onOpenPrivacyVault()
+                                                "security_guard" -> onOpenSecurityGuard()
                                                 "file_transfer" -> showFileTransferDialog = true
                                                 "media_manage" -> onRescanStorage()
                                                 "theme" -> onOpenThemePicker()

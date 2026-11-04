@@ -9,6 +9,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -58,12 +59,14 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.example.R
 import com.example.player.PlaybackSnapshot
 import kotlinx.coroutines.launch
 import kotlin.math.abs
@@ -210,12 +213,21 @@ fun MiniPlayerBar(
                             contentAlignment = Alignment.Center
                         ) {
                             if (currentMedia.thumbnailUri != null) {
-                                AsyncImage(
-                                    model = currentMedia.thumbnailUri,
-                                    contentDescription = null,
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.matchParentSize()
-                                )
+                                if (currentMedia.thumbnailUri.contains("img_music_vinyl")) {
+                                    Image(
+                                        painter = painterResource(id = R.drawable.img_music_vinyl),
+                                        contentDescription = null,
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.matchParentSize()
+                                    )
+                                } else {
+                                    AsyncImage(
+                                        model = currentMedia.thumbnailUri,
+                                        contentDescription = null,
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.matchParentSize()
+                                    )
+                                }
                             } else {
                                 Icon(
                                     imageVector = if (currentMedia.isVideo) Icons.Default.Videocam else Icons.Default.MusicNote,

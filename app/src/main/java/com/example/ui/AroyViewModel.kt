@@ -92,7 +92,8 @@ data class UiState(
     val dolbyBassBoost: Boolean = true,
     val dolbySurroundVirtualizer: Boolean = true,
     val favoriteUris: Set<String> = emptySet(),
-    val showPrivacyVault: Boolean = false
+    val showPrivacyVault: Boolean = false,
+    val showSecurityGuard: Boolean = false
 )
 
 class AroyViewModel(application: Application) : AndroidViewModel(application) {
@@ -120,10 +121,17 @@ class AroyViewModel(application: Application) : AndroidViewModel(application) {
     private val _isPrivacyPinSet = MutableStateFlow<Boolean>(false)
     val isPrivacyPinSet: StateFlow<Boolean> = _isPrivacyPinSet.asStateFlow()
 
+    private var failedAttempts = 0
+    private var lockoutUntilMs = 0L
+
     val playbackState: StateFlow<PlaybackSnapshot> = playerManager.state
 
-    val history: StateFlow<List<PlaybackHistoryEntity>> = repository.allHistory
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val history: StateFlow<List<PlaybackHistoryEntity>> = combine(
+        repository.allHistory,
+        _privateUris
+    ) { list, privs ->
+        list.filter { it.mediaUri !in privs }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val playlists: StateFlow<List<PlaylistEntity>> = repository.allPlaylists
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -205,6 +213,8 @@ class AroyViewModel(application: Application) : AndroidViewModel(application) {
 
         _privateUris.value = savedPrivates
         _isPrivacyPinSet.value = hasHash || hasLegacyPin
+        failedAttempts = prefs.getInt("vault_failed_attempts", 0)
+        lockoutUntilMs = prefs.getLong("vault_lockout_until_ms", 0L)
 
         _uiState.value = _uiState.value.copy(
             favoriteUris = savedFavorites,
@@ -219,7 +229,8 @@ class AroyViewModel(application: Application) : AndroidViewModel(application) {
         // Auto update system notification widget on playback state changes
         viewModelScope.launch {
             playerManager.state.collect { snapshot ->
-                notificationHelper.updateNotification(snapshot)
+                val isPrivate = snapshot.currentMedia?.uri?.let { it in _privateUris.value } == true
+                notificationHelper.updateNotification(snapshot, isPrivateMedia = isPrivate)
             }
         }
     }
@@ -346,9 +357,16 @@ class AroyViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.value = _uiState.value.copy(selectedFolder = null)
     }
 
+    private var playMediaJob: kotlinx.coroutines.Job? = null
+
     fun playMediaItem(item: MediaItemData, playlist: List<MediaItemData> = emptyList()) {
-        viewModelScope.launch {
-            val resumePos = repository.getResumePosition(item.uri)
+        playMediaJob?.cancel()
+        playMediaJob = viewModelScope.launch {
+            val resumePos = if (item.isVideo) {
+                try { repository.getResumePosition(item.uri) } catch (_: Exception) { 0L }
+            } else {
+                0L
+            }
             playerManager.playMedia(item, playlist, startPositionMs = resumePos)
 
             if (item.isVideo) {
@@ -356,7 +374,12 @@ class AroyViewModel(application: Application) : AndroidViewModel(application) {
             } else {
                 _uiState.value = _uiState.value.copy(isAudioSheetExpanded = true)
             }
-            repository.recordHistory(item, resumePos)
+            // Do not record private vault media into public playback history
+            if (item.uri !in _privateUris.value) {
+                try {
+                    repository.recordHistory(item, resumePos)
+                } catch (_: Exception) { }
+            }
         }
     }
 
@@ -391,12 +414,12 @@ class AroyViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun closeVideoPlayer() {
-        // Save current progress before closing
+        // Save current progress before closing (only for non-private media)
         val current = playbackState.value.currentMedia
         val pos = playbackState.value.currentPositionMs
-        if (current != null) {
+        if (current != null && current.uri !in _privateUris.value) {
             viewModelScope.launch {
-                repository.recordHistory(current, pos)
+                try { repository.recordHistory(current, pos) } catch (_: Exception) {}
             }
         }
         _uiState.value = _uiState.value.copy(isVideoPlayerOpen = false)
@@ -522,18 +545,43 @@ class AroyViewModel(application: Application) : AndroidViewModel(application) {
         return convertedItem
     }
 
-    // --- Privacy Vault Management ---
+    // --- Security Guard & Privacy Vault Management ---
+    fun openSecurityGuard() {
+        _uiState.value = _uiState.value.copy(showSecurityGuard = true)
+    }
+
+    fun closeSecurityGuard() {
+        _uiState.value = _uiState.value.copy(showSecurityGuard = false)
+    }
+
     fun openPrivacyVault() {
         _uiState.value = _uiState.value.copy(showPrivacyVault = true)
+    }
+
+    private fun stopPrivatePlaybackIfActive() {
+        val currentUri = playbackState.value.currentMedia?.uri
+        if (currentUri != null && currentUri in _privateUris.value) {
+            playerManager.stopPlayback()
+            notificationHelper.dismissNotification()
+            _uiState.value = _uiState.value.copy(
+                isVideoPlayerOpen = false,
+                isAudioSheetExpanded = false
+            )
+        }
     }
 
     fun closePrivacyVault() {
         _uiState.value = _uiState.value.copy(showPrivacyVault = false)
         _isPrivacyUnlocked.value = false
+        stopPrivatePlaybackIfActive()
     }
 
-    private var failedAttempts = 0
-    private var lockoutUntilMs = 0L
+    fun onAppBackgrounded() {
+        if (_isPrivacyUnlocked.value || _uiState.value.showPrivacyVault) {
+            _isPrivacyUnlocked.value = false
+            stopPrivatePlaybackIfActive()
+        }
+    }
 
     fun getLockoutSecondsRemaining(): Long {
         val now = System.currentTimeMillis()
@@ -552,16 +600,19 @@ class AroyViewModel(application: Application) : AndroidViewModel(application) {
             val salt = saltBytes.joinToString("") { "%02x".format(it) }
             val hash = hashPin(newPin, salt)
 
+            failedAttempts = 0
+            lockoutUntilMs = 0L
+
             prefs.edit()
                 .putString("privacy_vault_salt", salt)
                 .putString("privacy_vault_hash", hash)
                 .remove("privacy_vault_pin") // clean up legacy plaintext pin
+                .putInt("vault_failed_attempts", 0)
+                .putLong("vault_lockout_until_ms", 0L)
                 .apply()
 
             _isPrivacyPinSet.value = true
             _isPrivacyUnlocked.value = true
-            failedAttempts = 0
-            lockoutUntilMs = 0L
             return true
         }
         return false
@@ -579,10 +630,18 @@ class AroyViewModel(application: Application) : AndroidViewModel(application) {
 
         val isCorrect = when {
             hash != null && salt != null -> {
-                hashPin(enteredPin, salt) == hash
+                val computed = hashPin(enteredPin, salt)
+                MessageDigest.isEqual(
+                    computed.toByteArray(Charsets.UTF_8),
+                    hash.toByteArray(Charsets.UTF_8)
+                )
             }
             legacyPin != null -> {
-                if (legacyPin == enteredPin) {
+                if (MessageDigest.isEqual(
+                        legacyPin.toByteArray(Charsets.UTF_8),
+                        enteredPin.toByteArray(Charsets.UTF_8)
+                    )
+                ) {
                     setPrivacyPin(enteredPin) // Auto-migrate to salted SHA-256
                     true
                 } else false
@@ -593,6 +652,10 @@ class AroyViewModel(application: Application) : AndroidViewModel(application) {
         return if (isCorrect) {
             failedAttempts = 0
             lockoutUntilMs = 0L
+            prefs.edit()
+                .putInt("vault_failed_attempts", 0)
+                .putLong("vault_lockout_until_ms", 0L)
+                .apply()
             _isPrivacyUnlocked.value = true
             VaultUnlockResult.Success
         } else {
@@ -600,8 +663,15 @@ class AroyViewModel(application: Application) : AndroidViewModel(application) {
             if (failedAttempts >= 5) {
                 lockoutUntilMs = System.currentTimeMillis() + 30000L // 30-sec lockout
                 failedAttempts = 0
+                prefs.edit()
+                    .putInt("vault_failed_attempts", 0)
+                    .putLong("vault_lockout_until_ms", lockoutUntilMs)
+                    .apply()
                 VaultUnlockResult.LockedOut(30L)
             } else {
+                prefs.edit()
+                    .putInt("vault_failed_attempts", failedAttempts)
+                    .apply()
                 VaultUnlockResult.WrongPin(attemptsLeft = 5 - failedAttempts)
             }
         }
@@ -618,18 +688,21 @@ class AroyViewModel(application: Application) : AndroidViewModel(application) {
 
     fun lockPrivacyVault() {
         _isPrivacyUnlocked.value = false
+        stopPrivatePlaybackIfActive()
     }
 
     fun resetPrivacyPin(): Boolean {
+        failedAttempts = 0
+        lockoutUntilMs = 0L
         prefs.edit()
             .remove("privacy_vault_salt")
             .remove("privacy_vault_hash")
             .remove("privacy_vault_pin")
+            .putInt("vault_failed_attempts", 0)
+            .putLong("vault_lockout_until_ms", 0L)
             .apply()
         _isPrivacyPinSet.value = false
         _isPrivacyUnlocked.value = false
-        failedAttempts = 0
-        lockoutUntilMs = 0L
         return true
     }
 
@@ -638,6 +711,15 @@ class AroyViewModel(application: Application) : AndroidViewModel(application) {
         current.add(item.uri)
         _privateUris.value = current
         prefs.edit().putStringSet("privacy_vault_uris", current).apply()
+        // If this item was playing in public view while vault is locked, stop it immediately
+        if (!_isPrivacyUnlocked.value && playbackState.value.currentMedia?.uri == item.uri) {
+            playerManager.stopPlayback()
+            notificationHelper.dismissNotification()
+            _uiState.value = _uiState.value.copy(
+                isVideoPlayerOpen = false,
+                isAudioSheetExpanded = false
+            )
+        }
     }
 
     fun unlockMediaFromVault(item: MediaItemData) {

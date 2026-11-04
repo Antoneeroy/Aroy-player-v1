@@ -94,6 +94,7 @@ import com.example.ui.components.AudioPlayerSheet
 import com.example.ui.components.CreatePlaylistDialog
 import com.example.ui.components.MiniPlayerBar
 import com.example.ui.components.Mp3ConverterDialog
+import com.example.security.SecurityGuardDialog
 import com.example.ui.components.PrivacyVaultDialog
 import com.example.ui.components.SleepTimerDialog
 import com.example.ui.components.SortOrderDialog
@@ -213,6 +214,7 @@ fun HomeScreen(viewModel: AroyViewModel) {
             onToggleDolbySurroundVirtualizer = { viewModel.setDolbySurroundVirtualizer(it) },
             isPrivacyPinSet = isPrivacyPinSet,
             onResetPrivacyPin = { viewModel.resetPrivacyPin() },
+            onOpenSecurityGuard = { viewModel.openSecurityGuard() },
             onBack = { viewModel.setSettingsOpen(false) }
         )
         return
@@ -305,6 +307,16 @@ fun HomeScreen(viewModel: AroyViewModel) {
                 }
             },
             onDismiss = { viewModel.closePrivacyVault() }
+        )
+    }
+
+    // Security Guard Shield Dialog
+    if (uiState.showSecurityGuard) {
+        SecurityGuardDialog(
+            isVaultPinSet = isPrivacyPinSet,
+            privateMediaCount = privateVideos.size + privateAudios.size,
+            onOpenPrivacyVault = { viewModel.openPrivacyVault() },
+            onDismiss = { viewModel.closeSecurityGuard() }
         )
     }
 
@@ -877,6 +889,7 @@ fun HomeScreen(viewModel: AroyViewModel) {
                             onOpenThemePicker = { viewModel.setSettingsOpen(true) },
                             onOpenMp3Converter = { viewModel.openMp3Converter(null) },
                             onOpenPrivacyVault = { viewModel.openPrivacyVault() },
+                            onOpenSecurityGuard = { viewModel.openSecurityGuard() },
                             onRescanStorage = { viewModel.scanStorage() }
                         )
                     }

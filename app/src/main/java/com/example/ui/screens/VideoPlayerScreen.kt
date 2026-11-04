@@ -668,7 +668,12 @@ fun VideoPlayerScreen(
                         // Slider & Times
                         var sliderPos by remember { mutableFloatStateOf(0f) }
                         var isDragging by remember { mutableStateOf(false) }
-                        val maxD = if (snapshot.durationMs > 0) snapshot.durationMs.toFloat() else 100f
+                        val maxD = snapshot.durationMs.toFloat().coerceAtLeast(100f)
+
+                        LaunchedEffect(currentMedia.uri) {
+                            isDragging = false
+                            sliderPos = 0f
+                        }
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -681,14 +686,15 @@ fun VideoPlayerScreen(
                             )
 
                             Slider(
-                                value = if (isDragging) sliderPos else snapshot.currentPositionMs.toFloat().coerceIn(0f, maxD),
+                                value = (if (isDragging) sliderPos else snapshot.currentPositionMs.toFloat()).coerceIn(0f, maxD),
                                 onValueChange = {
                                     isDragging = true
-                                    sliderPos = it
+                                    sliderPos = it.coerceIn(0f, maxD)
                                 },
                                 onValueChangeFinished = {
+                                    val target = sliderPos.coerceIn(0f, maxD).toLong()
                                     isDragging = false
-                                    playerManager.seekTo(sliderPos.toLong())
+                                    playerManager.seekTo(target)
                                 },
                                 valueRange = 0f..maxD,
                                 modifier = Modifier

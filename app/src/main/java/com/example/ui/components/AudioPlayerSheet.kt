@@ -1,6 +1,7 @@
 package com.example.ui.components
 
 import android.content.Intent
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -8,6 +9,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -76,11 +78,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.example.R
 import com.example.data.model.MediaItemData
 import com.example.data.model.PlaybackMode
 import com.example.data.model.PlayerRepeatMode
@@ -139,6 +143,15 @@ fun AudioPlayerSheet(
     var showOptionsMenu by remember { mutableStateOf(false) }
     var showSpeedMenu by remember { mutableStateOf(false) }
 
+    BackHandler {
+        onClose()
+    }
+
+    LaunchedEffect(current.uri) {
+        isDraggingSlider = false
+        sliderPosition = 0f
+    }
+
     val displayPos = if (isDraggingSlider) {
         sliderPosition.toLong()
     } else {
@@ -147,9 +160,11 @@ fun AudioPlayerSheet(
 
     // Up Next preview calculation
     val nextSong = remember(snapshot.queue, snapshot.queueIndex) {
-        if (snapshot.queue.isNotEmpty()) {
-            val nextIdx = (snapshot.queueIndex + 1) % snapshot.queue.size
-            if (nextIdx != snapshot.queueIndex) snapshot.queue[nextIdx] else null
+        val q = snapshot.queue
+        if (q.size > 1) {
+            val safeCurr = snapshot.queueIndex.coerceIn(0, q.size - 1)
+            val nextIdx = (safeCurr + 1) % q.size
+            if (nextIdx != safeCurr) q.getOrNull(nextIdx) else null
         } else null
     }
 
@@ -349,12 +364,21 @@ fun AudioPlayerSheet(
                 ) {
                     // Artwork Content
                     if (current.thumbnailUri != null) {
-                        AsyncImage(
-                            model = current.thumbnailUri,
-                            contentDescription = current.title,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
+                        if (current.thumbnailUri.contains("img_music_vinyl")) {
+                            Image(
+                                painter = painterResource(id = R.drawable.img_music_vinyl),
+                                contentDescription = current.title,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        } else {
+                            AsyncImage(
+                                model = current.thumbnailUri,
+                                contentDescription = current.title,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
                     } else {
                         // Glossy Fallback Vinyl Gradient
                         Box(
@@ -460,16 +484,17 @@ fun AudioPlayerSheet(
             Spacer(modifier = Modifier.height(14.dp))
 
             // Glassmorphic Scrubber Slider
-            val maxDur = if (snapshot.durationMs > 0) snapshot.durationMs.toFloat() else 100f
+            val maxDur = snapshot.durationMs.toFloat().coerceAtLeast(100f)
             Slider(
-                value = if (isDraggingSlider) sliderPosition else snapshot.currentPositionMs.toFloat().coerceIn(0f, maxDur),
+                value = (if (isDraggingSlider) sliderPosition else snapshot.currentPositionMs.toFloat()).coerceIn(0f, maxDur),
                 onValueChange = {
                     isDraggingSlider = true
-                    sliderPosition = it
+                    sliderPosition = it.coerceIn(0f, maxDur)
                 },
                 onValueChangeFinished = {
+                    val target = sliderPosition.coerceIn(0f, maxDur).toLong()
                     isDraggingSlider = false
-                    onSeek(sliderPosition.toLong())
+                    onSeek(target)
                 },
                 valueRange = 0f..maxDur,
                 modifier = Modifier
@@ -791,12 +816,21 @@ fun AudioPlayerSheet(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     if (nextSong.thumbnailUri != null) {
-                                        AsyncImage(
-                                            model = nextSong.thumbnailUri,
-                                            contentDescription = null,
-                                            contentScale = ContentScale.Crop,
-                                            modifier = Modifier.fillMaxSize()
-                                        )
+                                        if (nextSong.thumbnailUri.contains("img_music_vinyl")) {
+                                            Image(
+                                                painter = painterResource(id = R.drawable.img_music_vinyl),
+                                                contentDescription = null,
+                                                contentScale = ContentScale.Crop,
+                                                modifier = Modifier.fillMaxSize()
+                                            )
+                                        } else {
+                                            AsyncImage(
+                                                model = nextSong.thumbnailUri,
+                                                contentDescription = null,
+                                                contentScale = ContentScale.Crop,
+                                                modifier = Modifier.fillMaxSize()
+                                            )
+                                        }
                                     } else {
                                         Icon(
                                             imageVector = Icons.Default.MusicNote,

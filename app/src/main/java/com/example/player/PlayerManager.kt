@@ -100,16 +100,30 @@ class PlayerManager(private val context: Context) {
                 }
             }
 
+            override fun onAudioSessionIdChanged(audioSessionId: Int) {
+                if (audioSessionId > 0 && audioSessionId != C.AUDIO_SESSION_ID_UNSET) {
+                    applyDolbyEffects(audioSessionId)
+                }
+            }
+
             override fun onPlaybackStateChanged(playbackState: Int) {
                 val isBuffering = playbackState == Player.STATE_BUFFERING
-                val duration = if (player.duration > 0) player.duration else _state.value.currentMedia?.durationMs ?: 0L
+                val rawDur = player.duration
+                val duration = if (rawDur > 0 && rawDur != C.TIME_UNSET) {
+                    rawDur
+                } else {
+                    (_state.value.currentMedia?.durationMs ?: 0L).coerceAtLeast(0L)
+                }
                 _state.value = _state.value.copy(
                     isBuffering = isBuffering,
                     durationMs = duration
                 )
 
                 if (playbackState == Player.STATE_ENDED) {
-                    onTrackEnded()
+                    // Dispatch asynchronously on Main scope to avoid re-entrant ExoPlayer listener mutation
+                    scope.launch {
+                        onTrackEnded()
+                    }
                 }
             }
 
@@ -129,6 +143,7 @@ class PlayerManager(private val context: Context) {
                         error.message ?: "Playback error encountered"
                     }
                 }
+                stopProgressTracker()
                 _state.value = _state.value.copy(
                     isPlaying = false,
                     isBuffering = false,
@@ -141,7 +156,7 @@ class PlayerManager(private val context: Context) {
                 newPosition: Player.PositionInfo,
                 reason: Int
             ) {
-                _state.value = _state.value.copy(currentPositionMs = newPosition.positionMs)
+                _state.value = _state.value.copy(currentPositionMs = newPosition.positionMs.coerceAtLeast(0L))
             }
         })
 
@@ -191,51 +206,68 @@ class PlayerManager(private val context: Context) {
             return
         }
 
-        val player = getPlayer()
+        try {
+            val player = getPlayer()
 
-        val fullQueue = if (playlist.isNotEmpty()) playlist else listOf(item)
-        val index = fullQueue.indexOfFirst { it.uri == item.uri }.let { if (it >= 0) it else 0 }
+            val fullQueue = if (playlist.isNotEmpty()) playlist else listOf(item)
+            val index = fullQueue.indexOfFirst { it.uri == item.uri }.let { if (it >= 0) it else 0 }
 
-        val mediaItemBuilder = MediaItem.Builder().setUri(item.uri)
+            val mediaItemBuilder = MediaItem.Builder().setUri(item.uri)
 
-        // HLS detection
-        if (item.uri.endsWith(".m3u8", ignoreCase = true) || item.streamType == "HLS") {
-            mediaItemBuilder.setMimeType(MimeTypes.APPLICATION_M3U8)
-        }
-
-        // Subtitle support (.srt or .vtt)
-        if (subtitleUri != null) {
-            val mimeType = if (subtitleUri.toString().endsWith(".vtt", ignoreCase = true)) {
-                MimeTypes.TEXT_VTT
-            } else {
-                MimeTypes.APPLICATION_SUBRIP
+            // HLS detection
+            if (item.uri.endsWith(".m3u8", ignoreCase = true) || item.streamType == "HLS") {
+                mediaItemBuilder.setMimeType(MimeTypes.APPLICATION_M3U8)
             }
-            val subtitle = MediaItem.SubtitleConfiguration.Builder(subtitleUri)
-                .setMimeType(mimeType)
-                .setLanguage("en")
-                .setSelectionFlags(C.SELECTION_FLAG_DEFAULT)
-                .build()
-            mediaItemBuilder.setSubtitleConfigurations(listOf(subtitle))
-        }
 
-        player.setMediaItem(mediaItemBuilder.build())
-        player.prepare()
-        if (startPositionMs > 0) {
-            player.seekTo(startPositionMs)
-        }
-        player.play()
-        applyDolbyEffects()
+            // Subtitle support (.srt or .vtt)
+            if (subtitleUri != null) {
+                val mimeType = if (subtitleUri.toString().endsWith(".vtt", ignoreCase = true)) {
+                    MimeTypes.TEXT_VTT
+                } else {
+                    MimeTypes.APPLICATION_SUBRIP
+                }
+                val subtitle = MediaItem.SubtitleConfiguration.Builder(subtitleUri)
+                    .setMimeType(mimeType)
+                    .setLanguage("en")
+                    .setSelectionFlags(C.SELECTION_FLAG_DEFAULT)
+                    .build()
+                mediaItemBuilder.setSubtitleConfigurations(listOf(subtitle))
+            }
 
-        _state.value = _state.value.copy(
-            currentMedia = item,
-            queue = fullQueue,
-            queueIndex = index,
-            currentPositionMs = startPositionMs,
-            durationMs = item.durationMs,
-            isAudioSessionActive = !item.isVideo,
-            hasSubtitle = subtitleUri != null,
-            errorMessage = null
-        )
+            // Cleanly stop previous media period & release codecs before loading next track
+            stopProgressTracker()
+            player.stop()
+            player.clearMediaItems()
+
+            val safeStartPos = if (item.durationMs > 0 && startPositionMs >= item.durationMs - 2000L) {
+                0L
+            } else {
+                startPositionMs.coerceAtLeast(0L)
+            }
+
+            player.setMediaItem(mediaItemBuilder.build(), safeStartPos)
+            player.playWhenReady = true
+            player.prepare()
+            player.play()
+            applyDolbyEffects(player.audioSessionId)
+
+            _state.value = _state.value.copy(
+                currentMedia = item,
+                queue = fullQueue,
+                queueIndex = index,
+                currentPositionMs = safeStartPos,
+                durationMs = item.durationMs.coerceAtLeast(0L),
+                isAudioSessionActive = !item.isVideo,
+                hasSubtitle = subtitleUri != null,
+                errorMessage = null
+            )
+        } catch (t: Throwable) {
+            _state.value = _state.value.copy(
+                isPlaying = false,
+                isBuffering = false,
+                errorMessage = t.message ?: "Unable to play selected track"
+            )
+        }
     }
 
     fun clearError() {
@@ -321,11 +353,8 @@ class PlayerManager(private val context: Context) {
     fun setPlaybackMode(mode: PlaybackMode) {
         val player = exoPlayer
         if (player != null) {
-            when (mode) {
-                PlaybackMode.REPEAT_ONE -> player.repeatMode = Player.REPEAT_MODE_ONE
-                PlaybackMode.REPEAT_ALL -> player.repeatMode = Player.REPEAT_MODE_ALL
-                else -> player.repeatMode = Player.REPEAT_MODE_OFF
-            }
+            // Keep ExoPlayer repeatMode OFF so STATE_ENDED always fires and onTrackEnded() manages the full queue
+            player.repeatMode = Player.REPEAT_MODE_OFF
         }
         val legacyRepeat = when (mode) {
             PlaybackMode.REPEAT_ONE -> PlayerRepeatMode.ONE
@@ -353,25 +382,23 @@ class PlayerManager(private val context: Context) {
 
     fun playNext() {
         val q = _state.value.queue
-        val currIdx = _state.value.queueIndex
-        if (q.isNotEmpty()) {
-            val nextIdx = if (_state.value.playbackMode == PlaybackMode.SHUFFLE && q.size > 1) {
-                val available = q.indices.filter { it != currIdx }
-                if (available.isNotEmpty()) available.random() else (currIdx + 1) % q.size
-            } else {
-                (currIdx + 1) % q.size
-            }
-            playMedia(q[nextIdx], q)
+        if (q.isEmpty()) return
+        val currIdx = _state.value.queueIndex.coerceIn(0, q.size - 1)
+        val nextIdx = if (_state.value.playbackMode == PlaybackMode.SHUFFLE && q.size > 1) {
+            val available = q.indices.filter { it != currIdx }
+            if (available.isNotEmpty()) available.random() else (currIdx + 1) % q.size
+        } else {
+            (currIdx + 1) % q.size
         }
+        q.getOrNull(nextIdx)?.let { playMedia(it, q) }
     }
 
     fun playPrevious() {
         val q = _state.value.queue
-        val currIdx = _state.value.queueIndex
-        if (q.isNotEmpty()) {
-            val prevIdx = if (currIdx - 1 < 0) q.size - 1 else currIdx - 1
-            playMedia(q[prevIdx], q)
-        }
+        if (q.isEmpty()) return
+        val currIdx = _state.value.queueIndex.coerceIn(0, q.size - 1)
+        val prevIdx = if (currIdx - 1 < 0) q.size - 1 else currIdx - 1
+        q.getOrNull(prevIdx)?.let { playMedia(it, q) }
     }
 
     fun toggleMute() {
@@ -410,7 +437,7 @@ class PlayerManager(private val context: Context) {
     private fun onTrackEnded() {
         val mode = _state.value.playbackMode
         val q = _state.value.queue
-        val currIdx = _state.value.queueIndex
+        val currIdx = if (q.isNotEmpty()) _state.value.queueIndex.coerceIn(0, q.size - 1) else 0
 
         when (mode) {
             PlaybackMode.REPEAT_ONE -> {
@@ -423,7 +450,7 @@ class PlayerManager(private val context: Context) {
                         val available = q.indices.filter { it != currIdx }
                         if (available.isNotEmpty()) available.random() else 0
                     } else 0
-                    playMedia(q[nextIdx], q)
+                    q.getOrNull(nextIdx)?.let { playMedia(it, q) }
                 } else {
                     _state.value = _state.value.copy(isPlaying = false)
                 }
@@ -432,7 +459,7 @@ class PlayerManager(private val context: Context) {
                 // Sequential play (≡↓): auto play next in list, stop if end of queue reached
                 if (q.isNotEmpty()) {
                     if (currIdx + 1 < q.size) {
-                        playMedia(q[currIdx + 1], q)
+                        q.getOrNull(currIdx + 1)?.let { playMedia(it, q) }
                     } else {
                         // End of playlist
                         _state.value = _state.value.copy(isPlaying = false)
@@ -444,7 +471,7 @@ class PlayerManager(private val context: Context) {
             PlaybackMode.REPEAT_ALL -> {
                 if (q.isNotEmpty()) {
                     val nextIdx = (currIdx + 1) % q.size
-                    playMedia(q[nextIdx], q)
+                    q.getOrNull(nextIdx)?.let { playMedia(it, q) }
                 } else {
                     _state.value = _state.value.copy(isPlaying = false)
                 }
@@ -461,12 +488,19 @@ class PlayerManager(private val context: Context) {
         progressJob = scope.launch {
             while (isActive) {
                 exoPlayer?.let { player ->
-                    val pos = player.currentPosition
-                    val dur = if (player.duration > 0) player.duration else _state.value.durationMs
-                    _state.value = _state.value.copy(
-                        currentPositionMs = pos,
-                        durationMs = dur
-                    )
+                    if (player.isPlaying) {
+                        val pos = player.currentPosition.coerceAtLeast(0L)
+                        val rawDur = player.duration
+                        val dur = if (rawDur > 0 && rawDur != C.TIME_UNSET) {
+                            rawDur
+                        } else {
+                            _state.value.durationMs.coerceAtLeast(0L)
+                        }
+                        _state.value = _state.value.copy(
+                            currentPositionMs = pos,
+                            durationMs = dur
+                        )
+                    }
                 }
                 delay(250)
             }
@@ -479,6 +513,7 @@ class PlayerManager(private val context: Context) {
 
     private var virtualizer: android.media.audiofx.Virtualizer? = null
     private var bassBoost: android.media.audiofx.BassBoost? = null
+    private var boundAudioSessionId: Int = C.AUDIO_SESSION_ID_UNSET
     private var isDolbyEnabled: Boolean = true
     private var currentDolbyProfile: String = "Dynamic"
     private var currentDolbyBass: Boolean = true
@@ -494,47 +529,80 @@ class PlayerManager(private val context: Context) {
         currentDolbyProfile = profile
         currentDolbyBass = enableBass
         currentDolbyVirtualizer = enableVirtualizer
-        applyDolbyEffects()
+        applyDolbyEffects(exoPlayer?.audioSessionId ?: C.AUDIO_SESSION_ID_UNSET)
     }
 
-    private fun applyDolbyEffects() {
-        val player = exoPlayer ?: return
-        val sessionId = player.audioSessionId
-        if (sessionId <= 0) return
+    private fun releaseAudioEffects() {
+        try {
+            virtualizer?.release()
+        } catch (_: Throwable) {}
+        virtualizer = null
 
         try {
-            if (isDolbyEnabled) {
+            bassBoost?.release()
+        } catch (_: Throwable) {}
+        bassBoost = null
+        boundAudioSessionId = C.AUDIO_SESSION_ID_UNSET
+    }
+
+    private fun applyDolbyEffects(sessionId: Int = exoPlayer?.audioSessionId ?: C.AUDIO_SESSION_ID_UNSET) {
+        if (sessionId <= 0 || sessionId == C.AUDIO_SESSION_ID_UNSET) return
+
+        try {
+            if (!isDolbyEnabled) {
+                try { virtualizer?.enabled = false } catch (_: Throwable) {}
+                try { bassBoost?.enabled = false } catch (_: Throwable) {}
+                return
+            }
+
+            // If ExoPlayer switched to a new AudioSessionId across tracks, release old effects first
+            if (boundAudioSessionId != sessionId) {
+                releaseAudioEffects()
+                boundAudioSessionId = sessionId
+            }
+
+            try {
                 if (virtualizer == null) {
                     virtualizer = android.media.audiofx.Virtualizer(0, sessionId)
                 }
-                virtualizer?.enabled = currentDolbyVirtualizer
-                if (currentDolbyVirtualizer) {
-                    virtualizer?.setStrength(1000.toShort())
+                virtualizer?.let { virt ->
+                    virt.enabled = currentDolbyVirtualizer
+                    if (currentDolbyVirtualizer && virt.strengthSupported) {
+                        virt.setStrength(1000.toShort())
+                    }
                 }
+            } catch (_: Throwable) {
+                try { virtualizer?.release() } catch (_: Throwable) {}
+                virtualizer = null
+            }
 
+            try {
                 if (bassBoost == null) {
                     bassBoost = android.media.audiofx.BassBoost(0, sessionId)
                 }
-                bassBoost?.enabled = currentDolbyBass
-                if (currentDolbyBass) {
-                    val strength = when (currentDolbyProfile) {
-                        "Movie" -> 850.toShort()
-                        "Music" -> 900.toShort()
-                        "Voice" -> 250.toShort()
-                        else -> 800.toShort()
+                bassBoost?.let { bass ->
+                    bass.enabled = currentDolbyBass
+                    if (currentDolbyBass && bass.strengthSupported) {
+                        val strength = when (currentDolbyProfile) {
+                            "Movie" -> 850.toShort()
+                            "Music" -> 900.toShort()
+                            "Voice" -> 250.toShort()
+                            else -> 800.toShort()
+                        }
+                        bass.setStrength(strength)
                     }
-                    bassBoost?.setStrength(strength)
                 }
-            } else {
-                virtualizer?.enabled = false
-                bassBoost?.enabled = false
+            } catch (_: Throwable) {
+                try { bassBoost?.release() } catch (_: Throwable) {}
+                bassBoost = null
             }
-        } catch (e: Exception) {
-            // Emulators or unsupported devices
+        } catch (_: Throwable) {
+            // Safely ignore hardware DSP limitations on emulators or unsupported OEM HALs
         }
     }
 
     fun stopPlayback() {
+        stopProgressTracker()
         exoPlayer?.pause()
         _state.value = _state.value.copy(
             isPlaying = false,
@@ -546,15 +614,10 @@ class PlayerManager(private val context: Context) {
     fun release() {
         stopProgressTracker()
         sleepTimerJob?.cancel()
+        releaseAudioEffects()
         try {
-            virtualizer?.release()
-            bassBoost?.release()
-            virtualizer = null
-            bassBoost = null
-        } catch (e: Exception) {
-            // ignore
-        }
-        exoPlayer?.release()
+            exoPlayer?.release()
+        } catch (_: Throwable) {}
         exoPlayer = null
     }
 }
