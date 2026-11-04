@@ -134,7 +134,7 @@ class MediaStoreScanner(private val context: Context) {
             }
         )
 
-        val selection = "${MediaStore.Audio.Media.DURATION} >= 10000" // at least 10s
+        val selection = "${MediaStore.Audio.Media.DURATION} >= 5000 AND ${MediaStore.Audio.Media.SIZE} > 20480"
         val sortOrder = "${MediaStore.Audio.Media.TITLE} ASC"
 
         try {

@@ -1,5 +1,6 @@
 package com.example.player
 
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -10,14 +11,17 @@ import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import androidx.media.app.NotificationCompat.MediaStyle
 import com.example.MainActivity
 import com.example.R
 
-class AroyNotificationHelper(private val context: Context) {
+class AroyNotificationHelper(context: Context) {
+
+    private val appContext = context.applicationContext
 
     private val notificationManager =
-        context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        appContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
     var mediaSession: MediaSessionCompat? = null
         private set
@@ -30,12 +34,12 @@ class AroyNotificationHelper(private val context: Context) {
     private var lastNotifiedTimeMs: Long = 0L
 
     private val contentPendingIntent: PendingIntent by lazy {
-        val openAppIntent = Intent(context, MainActivity::class.java).apply {
-            setPackage(context.packageName)
+        val openAppIntent = Intent(appContext, MainActivity::class.java).apply {
+            setPackage(appContext.packageName)
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
         PendingIntent.getActivity(
-            context,
+            appContext,
             0,
             openAppIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
@@ -44,10 +48,10 @@ class AroyNotificationHelper(private val context: Context) {
 
     private val prevPendingIntent: PendingIntent by lazy {
         PendingIntent.getBroadcast(
-            context,
+            appContext,
             1,
-            Intent(context, NotificationActionReceiver::class.java).apply {
-                setPackage(context.packageName)
+            Intent(appContext, NotificationActionReceiver::class.java).apply {
+                setPackage(appContext.packageName)
                 action = ACTION_PREV
             },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
@@ -56,10 +60,10 @@ class AroyNotificationHelper(private val context: Context) {
 
     private val playPendingIntent: PendingIntent by lazy {
         PendingIntent.getBroadcast(
-            context,
+            appContext,
             2,
-            Intent(context, NotificationActionReceiver::class.java).apply {
-                setPackage(context.packageName)
+            Intent(appContext, NotificationActionReceiver::class.java).apply {
+                setPackage(appContext.packageName)
                 action = ACTION_PLAY
             },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
@@ -68,10 +72,10 @@ class AroyNotificationHelper(private val context: Context) {
 
     private val pausePendingIntent: PendingIntent by lazy {
         PendingIntent.getBroadcast(
-            context,
+            appContext,
             5,
-            Intent(context, NotificationActionReceiver::class.java).apply {
-                setPackage(context.packageName)
+            Intent(appContext, NotificationActionReceiver::class.java).apply {
+                setPackage(appContext.packageName)
                 action = ACTION_PAUSE
             },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
@@ -80,10 +84,10 @@ class AroyNotificationHelper(private val context: Context) {
 
     private val nextPendingIntent: PendingIntent by lazy {
         PendingIntent.getBroadcast(
-            context,
+            appContext,
             3,
-            Intent(context, NotificationActionReceiver::class.java).apply {
-                setPackage(context.packageName)
+            Intent(appContext, NotificationActionReceiver::class.java).apply {
+                setPackage(appContext.packageName)
                 action = ACTION_NEXT
             },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
@@ -92,10 +96,10 @@ class AroyNotificationHelper(private val context: Context) {
 
     private val stopPendingIntent: PendingIntent by lazy {
         PendingIntent.getBroadcast(
-            context,
+            appContext,
             4,
-            Intent(context, NotificationActionReceiver::class.java).apply {
-                setPackage(context.packageName)
+            Intent(appContext, NotificationActionReceiver::class.java).apply {
+                setPackage(appContext.packageName)
                 action = ACTION_STOP
             },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
@@ -111,6 +115,18 @@ class AroyNotificationHelper(private val context: Context) {
         const val ACTION_NEXT = "com.example.ACTION_NEXT"
         const val ACTION_PREV = "com.example.ACTION_PREV"
         const val ACTION_STOP = "com.example.ACTION_STOP"
+
+        @Volatile
+        var latestNotification: Notification? = null
+
+        @Volatile
+        private var instance: AroyNotificationHelper? = null
+
+        fun getInstance(context: Context): AroyNotificationHelper {
+            return instance ?: synchronized(this) {
+                instance ?: AroyNotificationHelper(context.applicationContext).also { instance = it }
+            }
+        }
     }
 
     init {
@@ -120,7 +136,7 @@ class AroyNotificationHelper(private val context: Context) {
 
     private fun initMediaSession() {
         try {
-            mediaSession = MediaSessionCompat(context, "AroyMediaSession").apply {
+            mediaSession = MediaSessionCompat(appContext, "AroyMediaSession").apply {
                 isActive = true
                 setCallback(object : MediaSessionCompat.Callback() {
                     override fun onPlay() {
@@ -224,6 +240,10 @@ class AroyNotificationHelper(private val context: Context) {
         }
 
         try {
+            if (mediaSession?.isActive != true) {
+                mediaSession?.isActive = true
+            }
+
             // Update MediaSession Playback State so system notification displays live seekbar & controls
             val stateActions = PlaybackStateCompat.ACTION_PLAY or
                     PlaybackStateCompat.ACTION_PAUSE or
@@ -277,7 +297,7 @@ class AroyNotificationHelper(private val context: Context) {
                     mediaStyle.setMediaSession(token)
                 }
 
-                val notificationBuilder = NotificationCompat.Builder(context, CHANNEL_ID)
+                val notification = NotificationCompat.Builder(appContext, CHANNEL_ID)
                     .setSmallIcon(R.mipmap.ic_launcher)
                     .setContentTitle(safeTitle)
                     .setContentText(if (isPrivateMedia) "Privacy Vault • Protected" else if (media.isVideo) "${media.folderName} • Video" else "${media.artist} • Audio")
@@ -294,8 +314,24 @@ class AroyNotificationHelper(private val context: Context) {
                     .addAction(android.R.drawable.ic_media_previous, "Previous", prevPendingIntent)
                     .addAction(playPauseIcon, if (snapshot.isPlaying) "Pause" else "Play", playPausePendingIntent)
                     .addAction(android.R.drawable.ic_media_next, "Next", nextPendingIntent)
+                    .build()
 
-                notificationManager.notify(NOTIFICATION_ID, notificationBuilder.build())
+                latestNotification = notification
+                notificationManager.notify(NOTIFICATION_ID, notification)
+
+                // Ensure Foreground Service is started and keeping process alive in background
+                if (snapshot.isPlaying || AroyPlaybackService.isServiceRunning) {
+                    try {
+                        val serviceIntent = Intent(appContext, AroyPlaybackService::class.java).apply {
+                            action = AroyPlaybackService.ACTION_START_FOREGROUND
+                        }
+                        if (snapshot.isPlaying && !AroyPlaybackService.isServiceRunning) {
+                            ContextCompat.startForegroundService(appContext, serviceIntent)
+                        } else if (AroyPlaybackService.isServiceRunning) {
+                            appContext.startService(serviceIntent)
+                        }
+                    } catch (_: Throwable) {}
+                }
             }
         } catch (_: Throwable) {
             // Safely ignore SecurityException or Binder IPC transient errors
@@ -304,17 +340,26 @@ class AroyNotificationHelper(private val context: Context) {
 
     fun dismissNotification() {
         try {
-            if (lastNotifiedUri == null && lastNotifiedPlaying == null) return
+            if (lastNotifiedUri == null && lastNotifiedPlaying == null && !AroyPlaybackService.isServiceRunning) return
             lastNotifiedUri = null
             lastNotifiedPlaying = null
             lastNotifiedDuration = -1L
             lastNotifiedSpeed = -1f
             lastNotifiedPositionMs = -1L
             lastNotifiedTimeMs = 0L
+            latestNotification = null
             val stateBuilder = PlaybackStateCompat.Builder()
                 .setState(PlaybackStateCompat.STATE_STOPPED, 0L, 0f)
             mediaSession?.setPlaybackState(stateBuilder.build())
             notificationManager.cancel(NOTIFICATION_ID)
+            if (AroyPlaybackService.isServiceRunning) {
+                try {
+                    val stopIntent = Intent(appContext, AroyPlaybackService::class.java).apply {
+                        action = AroyPlaybackService.ACTION_STOP_FOREGROUND
+                    }
+                    appContext.startService(stopIntent)
+                } catch (_: Throwable) {}
+            }
         } catch (_: Throwable) {
             // ignore
         }

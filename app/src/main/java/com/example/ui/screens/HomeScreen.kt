@@ -188,11 +188,12 @@ fun HomeScreen(viewModel: AroyViewModel) {
     if (uiState.selectedFolder != null) {
         val folder = uiState.selectedFolder!!
         val folderItems = if (folder.isVideoFolder) filteredVideos else filteredAudios
+        val folderSpecificQueue = folderItems.filter { it.folderName == folder.name }.ifEmpty { folderItems }
         FolderDetailScreen(
             folder = folder,
             items = folderItems,
             onBack = { viewModel.closeFolder() },
-            onItemClick = { item -> viewModel.playMediaItem(item, folderItems) },
+            onItemClick = { item -> viewModel.playMediaItem(item, folderSpecificQueue) },
             onAddToPlaylist = { item -> viewModel.setShowAddToPlaylist(item) }
         )
         return
@@ -300,6 +301,7 @@ fun HomeScreen(viewModel: AroyViewModel) {
             onLockMedia = { viewModel.lockMediaToVault(it) },
             onUnlockMedia = { viewModel.unlockMediaFromVault(it) },
             onPlayMedia = { item ->
+                viewModel.hidePrivacyVaultOverlay()
                 if (item.isVideo) {
                     viewModel.playMediaItem(item, privateVideos)
                 } else {

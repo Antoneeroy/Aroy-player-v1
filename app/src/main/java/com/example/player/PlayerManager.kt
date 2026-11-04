@@ -55,6 +55,8 @@ class PlayerManager(private val context: Context) {
     private val scope = CoroutineScope(Dispatchers.Main)
     private var progressJob: Job? = null
     private var sleepTimerJob: Job? = null
+    // Prevent duplicate STATE_ENDED callbacks from advancing the queue more than once.
+    private var handlingTrackEnded = false
 
     private val _state = MutableStateFlow(PlaybackSnapshot())
     val state: StateFlow<PlaybackSnapshot> = _state.asStateFlow()
@@ -119,11 +121,15 @@ class PlayerManager(private val context: Context) {
                     durationMs = duration
                 )
 
-                if (playbackState == Player.STATE_ENDED) {
-                    // Dispatch asynchronously on Main scope to avoid re-entrant ExoPlayer listener mutation
+                if (playbackState == Player.STATE_ENDED && !handlingTrackEnded) {
+                    // Mark synchronously: multiple listener callbacks can arrive before the coroutine runs.
+                    handlingTrackEnded = true
+                    // Dispatch asynchronously to avoid mutating ExoPlayer re-entrantly from its listener.
                     scope.launch {
                         onTrackEnded()
                     }
+                } else if (playbackState == Player.STATE_READY) {
+                    handlingTrackEnded = false
                 }
             }
 
@@ -208,6 +214,7 @@ class PlayerManager(private val context: Context) {
 
         try {
             val player = getPlayer()
+            handlingTrackEnded = false
 
             val fullQueue = if (playlist.isNotEmpty()) playlist else listOf(item)
             val index = fullQueue.indexOfFirst { it.uri == item.uri }.let { if (it >= 0) it else 0 }
@@ -290,12 +297,9 @@ class PlayerManager(private val context: Context) {
         lastToggleTimeMs = now
 
         val player = exoPlayer ?: return
-        val isCurrentlyPlaying = player.playWhenReady && (_state.value.isPlaying || player.isPlaying)
-        if (isCurrentlyPlaying) {
-            pause()
-        } else {
-            resume()
-        }
+        // playWhenReady is the authoritative user intent, including while the player is buffering.
+        // isPlaying becomes false during buffering, which previously made Pause act like Play.
+        if (player.playWhenReady) pause() else resume()
     }
 
     fun pause() {
@@ -308,10 +312,13 @@ class PlayerManager(private val context: Context) {
 
     fun resume() {
         val player = exoPlayer ?: return
+        if (player.playbackState == Player.STATE_ENDED) {
+            handlingTrackEnded = false
+            player.seekTo(0L)
+        }
         player.playWhenReady = true
         player.play()
-        _state.value = _state.value.copy(isPlaying = true)
-        startProgressTracker()
+        // Let onIsPlayingChanged publish true only when playback actually starts.
     }
 
     fun seekTo(positionMs: Long) {

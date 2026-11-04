@@ -40,6 +40,12 @@
             </intent-filter>
         </activity>
 
+        <service
+            android:name=".player.AroyPlaybackService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
+
         <receiver
             android:name=".player.NotificationActionReceiver"
             android:exported="false">

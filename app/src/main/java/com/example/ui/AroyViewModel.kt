@@ -101,8 +101,8 @@ class AroyViewModel(application: Application) : AndroidViewModel(application) {
     private val db = AroyDatabase.getInstance(application)
     private val scanner = MediaStoreScanner(application)
     val repository = AroyRepository(scanner, db.aroyDao())
-    val playerManager = PlayerManager(application)
-    val notificationHelper = AroyNotificationHelper(application)
+    val playerManager = PlayerManager.getInstance(application)
+    val notificationHelper = AroyNotificationHelper.getInstance(application)
     private val prefs = application.getSharedPreferences("aroy_settings_pref", android.content.Context.MODE_PRIVATE)
 
     private val _uiState = MutableStateFlow(UiState())
@@ -131,13 +131,13 @@ class AroyViewModel(application: Application) : AndroidViewModel(application) {
         _privateUris
     ) { list, privs ->
         list.filter { it.mediaUri !in privs }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     val playlists: StateFlow<List<PlaylistEntity>> = repository.allPlaylists
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     val savedStreams: StateFlow<List<SavedStreamEntity>> = repository.savedStreams
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     // Filtered & Sorted Videos (Hides private vault videos from public views)
     val filteredVideos: StateFlow<List<MediaItemData>> = combine(
@@ -151,7 +151,7 @@ class AroyViewModel(application: Application) : AndroidViewModel(application) {
             nonPrivate.filter { it.title.lowercase().contains(query) || it.folderName.lowercase().contains(query) }
         }
         applySort(filtered, ui.sortOrder)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     // Filtered & Sorted Audios (Hides private vault music from public views)
     val filteredAudios: StateFlow<List<MediaItemData>> = combine(
@@ -169,7 +169,7 @@ class AroyViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
         applySort(filtered, ui.sortOrder)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     // Private Vault Media Collections
     val privateVideos: StateFlow<List<MediaItemData>> = combine(
@@ -177,29 +177,30 @@ class AroyViewModel(application: Application) : AndroidViewModel(application) {
         _privateUris
     ) { videos, privates ->
         videos.filter { it.uri in privates }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     val privateAudios: StateFlow<List<MediaItemData>> = combine(
         _rawAudios,
         _privateUris
     ) { audios, privates ->
         audios.filter { it.uri in privates }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     // Video folders
     val videoFolders: StateFlow<List<FolderItem>> = _rawVideos.combine(_privateUris) { videos, privates ->
         val nonPrivate = videos.filter { it.uri !in privates }
         repository.extractFolders(nonPrivate, true)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     // Audio folders
     val audioFolders: StateFlow<List<FolderItem>> = _rawAudios.combine(_privateUris) { audios, privates ->
         val nonPrivate = audios.filter { it.uri !in privates }
         repository.extractFolders(nonPrivate, false)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     init {
         NotificationActionReceiver.playerManager = playerManager
+        playerManager.isPrivateMediaChecker = { uri -> uri in _privateUris.value }
 
         // Load saved settings & Privacy Vault data
         val savedFavorites = prefs.getStringSet("favorites", emptySet()) ?: emptySet()
@@ -367,7 +368,21 @@ class AroyViewModel(application: Application) : AndroidViewModel(application) {
             } else {
                 0L
             }
-            playerManager.playMedia(item, playlist, startPositionMs = resumePos)
+            val effectivePlaylist = if (playlist.size > 1) {
+                playlist
+            } else if (item.uri in _privateUris.value) {
+                val privList = if (item.isVideo) privateVideos.value else privateAudios.value
+                if (privList.size > 1) privList else playlist
+            } else {
+                val pubList = if (item.isVideo) {
+                    filteredVideos.value.ifEmpty { getAllPublicVideos() }
+                } else {
+                    filteredAudios.value.ifEmpty { getAllPublicAudios() }
+                }
+                if (pubList.size > 1) pubList else playlist
+            }
+
+            playerManager.playMedia(item, effectivePlaylist, startPositionMs = resumePos)
 
             if (item.isVideo) {
                 _uiState.value = _uiState.value.copy(isVideoPlayerOpen = true)
@@ -570,16 +585,26 @@ class AroyViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun hidePrivacyVaultOverlay() {
+        _uiState.value = _uiState.value.copy(showPrivacyVault = false)
+    }
+
     fun closePrivacyVault() {
         _uiState.value = _uiState.value.copy(showPrivacyVault = false)
         _isPrivacyUnlocked.value = false
-        stopPrivatePlaybackIfActive()
+        if (playbackState.value.currentMedia?.isVideo == true) {
+            stopPrivatePlaybackIfActive()
+        }
     }
 
     fun onAppBackgrounded() {
         if (_isPrivacyUnlocked.value || _uiState.value.showPrivacyVault) {
             _isPrivacyUnlocked.value = false
-            stopPrivatePlaybackIfActive()
+            _uiState.value = _uiState.value.copy(showPrivacyVault = false)
+            // Only stop private video when backgrounded; allow background music to keep playing with masked notification
+            if (playbackState.value.currentMedia?.isVideo == true) {
+                stopPrivatePlaybackIfActive()
+            }
         }
     }
 
@@ -756,8 +781,9 @@ class AroyViewModel(application: Application) : AndroidViewModel(application) {
 
     override fun onCleared() {
         super.onCleared()
-        notificationHelper.release()
-        NotificationActionReceiver.playerManager = null
-        playerManager.release()
+        // Keep PlayerManager & Foreground Notification alive if audio is playing in background
+        if (!playerManager.state.value.isPlaying && playerManager.state.value.currentMedia == null) {
+            notificationHelper.dismissNotification()
+        }
     }
 }
