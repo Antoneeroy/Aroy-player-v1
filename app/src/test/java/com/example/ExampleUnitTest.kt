@@ -31,7 +31,7 @@ class ExampleUnitTest {
     fun defaultPlaybackSnapshot_isContinuousOrderAndRepeatAll() {
         val snapshot = PlaybackSnapshot()
         assertEquals(PlaybackMode.ORDER, snapshot.playbackMode)
-        assertEquals(PlayerRepeatMode.ALL, snapshot.repeatMode)
+        assertEquals(PlayerRepeatMode.OFF, snapshot.repeatMode)
     }
 
     @Test

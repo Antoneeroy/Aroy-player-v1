@@ -101,8 +101,8 @@ class AroyViewModel(application: Application) : AndroidViewModel(application) {
     private val db = AroyDatabase.getInstance(application)
     private val scanner = MediaStoreScanner(application)
     val repository = AroyRepository(scanner, db.aroyDao())
-    val playerManager = PlayerManager.getInstance(application)
-    val notificationHelper = AroyNotificationHelper.getInstance(application)
+    val playerManager = PlayerManager(application)
+    val notificationHelper = AroyNotificationHelper(application)
     private val prefs = application.getSharedPreferences("aroy_settings_pref", android.content.Context.MODE_PRIVATE)
 
     private val _uiState = MutableStateFlow(UiState())
@@ -200,7 +200,6 @@ class AroyViewModel(application: Application) : AndroidViewModel(application) {
 
     init {
         NotificationActionReceiver.playerManager = playerManager
-        playerManager.isPrivateMediaChecker = { uri -> uri in _privateUris.value }
 
         // Load saved settings & Privacy Vault data
         val savedFavorites = prefs.getStringSet("favorites", emptySet()) ?: emptySet()
